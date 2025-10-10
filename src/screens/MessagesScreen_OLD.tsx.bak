@@ -1,0 +1,428 @@
+import React, { useRef } from "react";
+import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../nav";
+import { useMessagingStore } from "../state/messagingStore";
+import { useAuthStore } from "../state/authStore";
+import { Ionicons } from "@expo/vector-icons";
+import { formatDistanceToNow } from "date-fns";
+import { colors } from "../utils/colors";
+import Swipeable from "react-native-gesture-handler/Swipeable";
+import * as Haptics from "expo-haptics";
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+export default function MessagesScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const { conversations, favoriteConversations, toggleFavorite, deleteConversation } = useMessagingStore();
+  const { user } = useAuthStore();
+  const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
+
+  // Prompt login if not authenticated
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="chatbubbles-outline" size={48} color={colors.primary[600]} />
+          </View>
+          <Text style={styles.emptyTitle}>
+            Sign in to view messages
+          </Text>
+          <Text style={styles.emptySubtitle}>
+            Create an account to message sellers and buyers
+          </Text>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate("Signup")}
+          >
+            <Text style={styles.primaryButtonText}>
+              Sign Up
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate("Login")}
+          >
+            <Text style={styles.secondaryButtonText}>
+              Log In
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const sortedConversations = [...conversations].sort((a, b) => {
+    // Favorites first
+    const aIsFavorite = favoriteConversations.includes(a.id);
+    const bIsFavorite = favoriteConversations.includes(b.id);
+    if (aIsFavorite && !bIsFavorite) return -1;
+    if (!aIsFavorite && bIsFavorite) return 1;
+    
+    // Then by last message time
+    return b.lastMessageTime - a.lastMessageTime;
+  });
+
+  const renderRightActions = (conversationId: string) => {
+    const isFavorite = favoriteConversations.includes(conversationId);
+    
+    return (
+      <View style={styles.swipeActionsContainer}>
+        <Pressable
+          style={styles.favoriteAction}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            toggleFavorite(conversationId);
+            swipeableRefs.current[conversationId]?.close();
+          }}
+        >
+          <Ionicons 
+            name={isFavorite ? "star" : "star-outline"} 
+            size={24} 
+            color="white" 
+          />
+        </Pressable>
+        <Pressable
+          style={styles.deleteAction}
+          onPress={() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            deleteConversation(conversationId);
+          }}
+        >
+          <Ionicons name="trash-outline" size={24} color="white" />
+        </Pressable>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
+        <Text style={styles.headerSubtitle}>
+          {sortedConversations.length} {sortedConversations.length === 1 ? "conversation" : "conversations"}
+        </Text>
+      </View>
+
+      <ScrollView style={styles.scrollView}>
+        {sortedConversations.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="chatbubbles-outline" size={48} color={colors.neutral[300]} />
+            </View>
+            <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              When you contact sellers or receive inquiries, they will appear here
+            </Text>
+          </View>
+        ) : (
+          sortedConversations.map((conversation) => {
+            const isFavorite = favoriteConversations.includes(conversation.id);
+            
+            return (
+              <Swipeable
+                key={conversation.id}
+                ref={(ref) => {
+                  swipeableRefs.current[conversation.id] = ref;
+                }}
+                renderRightActions={() => renderRightActions(conversation.id)}
+                overshootRight={false}
+                friction={2}
+                rightThreshold={40}
+              >
+                <Pressable
+                  style={styles.conversationCard}
+                  onPress={() =>
+                    navigation.navigate("Chat", { conversationId: conversation.id })
+                  }
+                >
+                  <View style={styles.conversationContent}>
+                    <View style={styles.imageContainer}>
+                      {conversation.listingImage ? (
+                        <Image
+                          source={{ uri: conversation.listingImage }}
+                          style={styles.listingImage}
+                        />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Ionicons name="image-outline" size={24} color={colors.neutral[400]} />
+                        </View>
+                      )}
+                      {conversation.unreadCount > 0 && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadBadgeText}>
+                            {conversation.unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.conversationDetails}>
+                      <View style={styles.conversationHeader}>
+                        <View style={styles.userNameContainer}>
+                          <Text style={styles.userName} numberOfLines={1}>
+                            {conversation.otherUserName}
+                          </Text>
+                          {isFavorite && (
+                            <Ionicons 
+                              name="star" 
+                              size={14} 
+                              color={colors.accent[500]} 
+                              style={styles.favoriteIcon}
+                            />
+                          )}
+                        </View>
+                        <Text style={styles.timestamp}>
+                          {formatDistanceToNow(conversation.lastMessageTime, {
+                            addSuffix: true,
+                          })}
+                        </Text>
+                      </View>
+                      
+                      <Text style={styles.listingTitle} numberOfLines={1}>
+                        {conversation.listingTitle}
+                      </Text>
+                      
+                      <Text
+                        style={[
+                          styles.lastMessage,
+                          conversation.unreadCount > 0 && styles.lastMessageUnread
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {conversation.lastMessage}
+                      </Text>
+                    </View>
+
+                    <Ionicons 
+                      name="chevron-forward" 
+                      size={20} 
+                      color={colors.neutral[400]} 
+                    />
+                  </View>
+                </Pressable>
+              </Swipeable>
+            );
+          })
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.light,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.text.tertiary,
+    fontWeight: "500",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 64,
+    paddingHorizontal: 32,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.background.tertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: colors.text.primary,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: colors.text.tertiary,
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text.secondary,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    color: colors.text.tertiary,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary[600],
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    marginBottom: 12,
+    width: "100%",
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+  secondaryButton: {
+    backgroundColor: colors.background.secondary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.border.main,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text.primary,
+  },
+  conversationCard: {
+    backgroundColor: colors.background.primary,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.light,
+  },
+  conversationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  imageContainer: {
+    position: "relative",
+    marginRight: 14,
+  },
+  listingImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+  },
+  imagePlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: colors.background.tertiary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.accent[500],
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.background.primary,
+  },
+  unreadBadgeText: {
+    color: "white",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  conversationDetails: {
+    flex: 1,
+    marginRight: 12,
+  },
+  conversationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text.primary,
+    flex: 1,
+    marginRight: 8,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: colors.text.tertiary,
+    fontWeight: "500",
+  },
+  listingTitle: {
+    fontSize: 13,
+    color: colors.text.tertiary,
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  lastMessage: {
+    fontSize: 14,
+    color: colors.text.tertiary,
+    fontWeight: "400",
+  },
+  lastMessageUnread: {
+    fontWeight: "600",
+    color: colors.text.primary,
+  },
+  swipeActionsContainer: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  favoriteAction: {
+    backgroundColor: colors.accent[500],
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+  },
+  deleteAction: {
+    backgroundColor: "#EF4444",
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+  },
+  userNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  favoriteIcon: {
+    marginLeft: 6,
+  },
+});

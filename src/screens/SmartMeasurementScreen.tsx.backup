@@ -1,0 +1,1258 @@
+import React, { useState, useRef } from "react";
+import { View, Text, Pressable, Image, Alert, TextInput, Modal, ScrollView, Animated, PanResponder } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../utils/colors";
+import { useNavigation } from "@react-navigation/native";
+import { useAuthStore } from "../state/authStore";
+import { useMeasurementsStore, MeasurementPoint } from "../state/measurementsStore";
+import * as ImagePicker from "expo-image-picker";
+import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
+
+interface Pin {
+  id: string;
+  x: number;
+  y: number;
+  dragOffsetX?: number;
+  dragOffsetY?: number;
+}
+
+interface Line {
+  id: string;
+  startPin: string;
+  endPin: string;
+  length: number; // in pixels, will convert to inches
+}
+
+interface PhotoMeasurement {
+  uri: string;
+  pins: Pin[];
+  lines: Line[];
+  dimensions?: {
+    length: number;
+    width: number;
+    area: number;
+  };
+  timestamp: number;
+}
+
+export default function SmartMeasurementScreen() {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuthStore();
+  const { addMeasurement } = useMeasurementsStore();
+  const cameraRef = useRef<any>(null);
+  
+  const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState<CameraType>("back");
+  const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
+  const [photoGallery, setPhotoGallery] = useState<PhotoMeasurement[]>([]);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  
+  // Measurement state
+  const [pins, setPins] = useState<Pin[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [activeDragPin, setActiveDragPin] = useState<string | null>(null);
+  const [isDraggingLine, setIsDraggingLine] = useState(false);
+  const [dragLineStart, setDragLineStart] = useState<Pin | null>(null);
+  const [dragLineEnd, setDragLineEnd] = useState<{ x: number; y: number } | null>(null);
+  
+  // Auto-calculated dimensions
+  const [dimensions, setDimensions] = useState<{ length: number; width: number; area: number } | null>(null);
+  
+  // Modal states
+  const [showDimensionsForm, setShowDimensionsForm] = useState(false);
+  const [showSearchForm, setShowSearchForm] = useState(false);
+  const [measurementType, setMeasurementType] = useState<"remnant" | "space">("space");
+  const [notes, setNotes] = useState("");
+
+  React.useEffect(() => {
+    if (permission && !permission.granted) {
+      requestPermission();
+    }
+  }, []);
+
+  const PIXELS_PER_INCH = 20; // Rough estimate, user can adjust
+
+  const takePicture = async () => {
+    if (cameraRef.current) {
+      try {
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.9,
+        });
+        
+        // Add to gallery
+        const newPhoto: PhotoMeasurement = {
+          uri: photo.uri,
+          pins: [],
+          lines: [],
+          timestamp: Date.now(),
+        };
+        
+        setPhotoGallery([newPhoto, ...photoGallery]);
+        setCurrentPhoto(photo.uri);
+        setSelectedPhotoIndex(0);
+        setPins([]);
+        setLines([]);
+        setDimensions(null);
+      } catch (error) {
+        Alert.alert("Error", "Failed to take picture");
+      }
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.9,
+    });
+
+    if (!result.canceled) {
+      const newPhoto: PhotoMeasurement = {
+        uri: result.assets[0].uri,
+        pins: [],
+        lines: [],
+        timestamp: Date.now(),
+      };
+      
+      setPhotoGallery([newPhoto, ...photoGallery]);
+      setCurrentPhoto(result.assets[0].uri);
+      setSelectedPhotoIndex(0);
+      setPins([]);
+      setLines([]);
+      setDimensions(null);
+    }
+  };
+
+  const selectPhotoFromGallery = (index: number) => {
+    const photo = photoGallery[index];
+    setCurrentPhoto(photo.uri);
+    setSelectedPhotoIndex(index);
+    setPins(photo.pins);
+    setLines(photo.lines);
+    setDimensions(photo.dimensions || null);
+  };
+
+  const handleImageTap = (x: number, y: number) => {
+    // Drop a pin
+    const newPin: Pin = {
+      id: `pin-${Date.now()}`,
+      x,
+      y,
+    };
+    
+    const updatedPins = [...pins, newPin];
+    setPins(updatedPins);
+    
+    // Auto-connect to previous pin if exists
+    if (pins.length > 0) {
+      const lastPin = pins[pins.length - 1];
+      const distance = Math.sqrt(
+        Math.pow(newPin.x - lastPin.x, 2) + Math.pow(newPin.y - lastPin.y, 2)
+      );
+      
+      const newLine: Line = {
+        id: `line-${Date.now()}`,
+        startPin: lastPin.id,
+        endPin: newPin.id,
+        length: distance,
+      };
+      
+      const updatedLines = [...lines, newLine];
+      setLines(updatedLines);
+      
+      // Auto-calculate dimensions when we have a rectangle (4 points)
+      if (updatedPins.length === 4) {
+        calculateDimensions(updatedPins, updatedLines);
+      }
+      
+      // Update gallery
+      updateCurrentPhotoInGallery(updatedPins, updatedLines);
+    } else {
+      updateCurrentPhotoInGallery(updatedPins, lines);
+    }
+  };
+
+  const startDragLine = (pin: Pin) => {
+    setIsDraggingLine(true);
+    setDragLineStart(pin);
+    setDragLineEnd({ x: pin.x, y: pin.y });
+  };
+
+  const updateDragLine = (x: number, y: number) => {
+    if (isDraggingLine) {
+      setDragLineEnd({ x, y });
+      
+      // Check for nearby pins to snap to
+      const snapDistance = 40;
+      const nearbyPin = pins.find(p => {
+        const dist = Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2));
+        return dist < snapDistance && p.id !== dragLineStart?.id;
+      });
+      
+      if (nearbyPin) {
+        setDragLineEnd({ x: nearbyPin.x, y: nearbyPin.y });
+      }
+    }
+  };
+
+  const endDragLine = (x: number, y: number) => {
+    if (!isDraggingLine || !dragLineStart) return;
+    
+    // Check for snap to existing pin
+    const snapDistance = 40;
+    const nearbyPin = pins.find(p => {
+      const dist = Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2));
+      return dist < snapDistance && p.id !== dragLineStart.id;
+    });
+    
+    let endPin: Pin;
+    
+    if (nearbyPin) {
+      endPin = nearbyPin;
+    } else {
+      // Create new pin at drop location
+      endPin = {
+        id: `pin-${Date.now()}`,
+        x,
+        y,
+      };
+      setPins([...pins, endPin]);
+    }
+    
+    // Create line
+    const distance = Math.sqrt(
+      Math.pow(endPin.x - dragLineStart.x, 2) + Math.pow(endPin.y - dragLineStart.y, 2)
+    );
+    
+    const newLine: Line = {
+      id: `line-${Date.now()}`,
+      startPin: dragLineStart.id,
+      endPin: endPin.id,
+      length: distance,
+    };
+    
+    const updatedLines = [...lines, newLine];
+    setLines(updatedLines);
+    
+    // Calculate if rectangle
+    const updatedPins = nearbyPin ? pins : [...pins, endPin];
+    if (updatedPins.length >= 4) {
+      calculateDimensions(updatedPins, updatedLines);
+    }
+    
+    updateCurrentPhotoInGallery(updatedPins, updatedLines);
+    
+    setIsDraggingLine(false);
+    setDragLineStart(null);
+    setDragLineEnd(null);
+  };
+
+  const calculateDimensions = (currentPins: Pin[], currentLines: Line[]) => {
+    if (currentLines.length < 2) return;
+    
+    // Get two longest lines (likely length and width)
+    const sortedLines = [...currentLines].sort((a, b) => b.length - a.length);
+    const length = sortedLines[0].length / PIXELS_PER_INCH;
+    const width = sortedLines[1].length / PIXELS_PER_INCH;
+    
+    const area = length * width;
+    
+    const dims = {
+      length: Math.round(length * 10) / 10,
+      width: Math.round(width * 10) / 10,
+      area: Math.round(area * 10) / 10,
+    };
+    
+    setDimensions(dims);
+    
+    // Update gallery
+    if (selectedPhotoIndex !== null) {
+      const updatedGallery = [...photoGallery];
+      updatedGallery[selectedPhotoIndex].dimensions = dims;
+      setPhotoGallery(updatedGallery);
+    }
+  };
+
+  const updateCurrentPhotoInGallery = (currentPins: Pin[], currentLines: Line[]) => {
+    if (selectedPhotoIndex !== null) {
+      const updatedGallery = [...photoGallery];
+      updatedGallery[selectedPhotoIndex].pins = currentPins;
+      updatedGallery[selectedPhotoIndex].lines = currentLines;
+      setPhotoGallery(updatedGallery);
+    }
+  };
+
+  const clearMeasurements = () => {
+    setPins([]);
+    setLines([]);
+    setDimensions(null);
+    setDragLineStart(null);
+    setDragLineEnd(null);
+    setIsDraggingLine(false);
+    
+    if (selectedPhotoIndex !== null) {
+      const updatedGallery = [...photoGallery];
+      updatedGallery[selectedPhotoIndex].pins = [];
+      updatedGallery[selectedPhotoIndex].lines = [];
+      updatedGallery[selectedPhotoIndex].dimensions = undefined;
+      setPhotoGallery(updatedGallery);
+    }
+  };
+
+  const deleteLastPin = () => {
+    if (pins.length === 0) return;
+    
+    const lastPin = pins[pins.length - 1];
+    const updatedPins = pins.slice(0, -1);
+    const updatedLines = lines.filter(l => l.startPin !== lastPin.id && l.endPin !== lastPin.id);
+    
+    setPins(updatedPins);
+    setLines(updatedLines);
+    
+    if (updatedPins.length >= 4 && updatedLines.length >= 2) {
+      calculateDimensions(updatedPins, updatedLines);
+    } else {
+      setDimensions(null);
+    }
+    
+    updateCurrentPhotoInGallery(updatedPins, updatedLines);
+  };
+
+  const saveToProfile = () => {
+    if (!user) {
+      Alert.alert("Login Required", "Please log in to save measurements");
+      return;
+    }
+
+    if (!currentPhoto || !dimensions) {
+      Alert.alert("No Measurements", "Please complete measurements first");
+      return;
+    }
+
+    addMeasurement({
+      userId: user.id,
+      imageUri: currentPhoto,
+      points: pins.map(p => ({ x: p.x, y: p.y })),
+      measurements: lines.map(l => {
+        const startPin = pins.find(p => p.id === l.startPin)!;
+        const endPin = pins.find(p => p.id === l.endPin)!;
+        return {
+          id: l.id,
+          start: { x: startPin.x, y: startPin.y },
+          end: { x: endPin.x, y: endPin.y },
+          length: l.length / PIXELS_PER_INCH,
+          label: `${(l.length / PIXELS_PER_INCH).toFixed(1)}"`,
+        };
+      }),
+      totalLength: dimensions.length,
+      totalWidth: dimensions.width,
+      notes,
+      type: measurementType,
+    });
+
+    Alert.alert(
+      "Saved!",
+      `Measurement saved: ${dimensions.length}" × ${dimensions.width}"`,
+      [{ text: "OK", onPress: () => navigation.goBack() }]
+    );
+  };
+
+  const getPinForId = (id: string): Pin | undefined => {
+    return pins.find(p => p.id === id);
+  };
+
+  // Render measurement screen
+  if (currentPhoto) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "black" }}>
+        <View style={{ flex: 1, position: "relative" }}>
+          <Image
+            source={{ uri: currentPhoto }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="contain"
+          />
+
+          {/* Interactive overlay */}
+          <Pressable
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+            onPress={(e) => {
+              if (!isDraggingLine) {
+                const { locationX, locationY } = e.nativeEvent;
+                handleImageTap(locationX, locationY);
+              }
+            }}
+            onTouchMove={(e) => {
+              if (isDraggingLine) {
+                const { locationX, locationY } = e.nativeEvent.touches[0];
+                updateDragLine(locationX, locationY);
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (isDraggingLine) {
+                const { locationX, locationY } = e.nativeEvent.changedTouches[0];
+                endDragLine(locationX, locationY);
+              }
+            }}
+          >
+            <View style={{ flex: 1 }} pointerEvents="box-none">
+              {/* Lines */}
+              {lines.map((line) => {
+                const startPin = getPinForId(line.startPin);
+                const endPin = getPinForId(line.endPin);
+                if (!startPin || !endPin) return null;
+
+                const dx = endPin.x - startPin.x;
+                const dy = endPin.y - startPin.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                const lengthInInches = line.length / PIXELS_PER_INCH;
+
+                return (
+                  <View key={line.id} pointerEvents="none">
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: startPin.x,
+                        top: startPin.y,
+                        width: length,
+                        height: 4,
+                        backgroundColor: colors.accent[500],
+                        transform: [{ rotate: `${angle}deg` }],
+                        transformOrigin: "top left",
+                      }}
+                    />
+                    
+                    {/* Length label */}
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: (startPin.x + endPin.x) / 2 - 30,
+                        top: (startPin.y + endPin.y) / 2 - 16,
+                        backgroundColor: colors.accent[500],
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 2,
+                        borderColor: "white",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }}>
+                        {lengthInInches.toFixed(1)}"
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+
+              {/* Drag line preview */}
+              {isDraggingLine && dragLineStart && dragLineEnd && (
+                <View pointerEvents="none">
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: dragLineStart.x,
+                      top: dragLineStart.y,
+                      width: Math.sqrt(
+                        Math.pow(dragLineEnd.x - dragLineStart.x, 2) +
+                        Math.pow(dragLineEnd.y - dragLineStart.y, 2)
+                      ),
+                      height: 3,
+                      backgroundColor: "rgba(249, 115, 22, 0.6)",
+                      transform: [{
+                        rotate: `${Math.atan2(
+                          dragLineEnd.y - dragLineStart.y,
+                          dragLineEnd.x - dragLineStart.x
+                        ) * (180 / Math.PI)}deg`
+                      }],
+                      transformOrigin: "top left",
+                    }}
+                  />
+                </View>
+              )}
+
+              {/* Pins */}
+              {pins.map((pin, index) => (
+                <Pressable
+                  key={pin.id}
+                  onPressIn={() => startDragLine(pin)}
+                  style={{
+                    position: "absolute",
+                    left: pin.x - 20,
+                    top: pin.y - 20,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: colors.accent[500],
+                    borderWidth: 4,
+                    borderColor: "white",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 5,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: "white" }}>
+                    {index + 1}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </View>
+
+        {/* Top Bar */}
+        <View style={{
+          position: "absolute",
+          top: insets.top,
+          left: 0,
+          right: 0,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+        }}>
+          <Pressable
+            onPress={() => {
+              setCurrentPhoto(null);
+              setSelectedPhotoIndex(null);
+            }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: "rgba(0,0,0,0.7)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </Pressable>
+
+          <View style={{
+            backgroundColor: "rgba(0,0,0,0.8)",
+            borderRadius: 16,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+          }}>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "white" }}>
+              {pins.length === 0 ? "Tap to drop pin" : `${pins.length} pins`}
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={clearMeasurements}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: "rgba(0,0,0,0.7)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="trash-outline" size={22} color="white" />
+          </Pressable>
+        </View>
+
+        {/* Bottom Gallery */}
+        <View style={{
+          position: "absolute",
+          bottom: insets.bottom,
+          left: 0,
+          right: 0,
+          paddingBottom: 12,
+        }}>
+          {/* Dimensions Display */}
+          {dimensions && (
+            <View style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              backgroundColor: "rgba(0,0,0,0.9)",
+              borderRadius: 16,
+              padding: 16,
+            }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 12 }}>
+                <View style={{ alignItems: "center" }}>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
+                    LENGTH
+                  </Text>
+                  <Text style={{ fontSize: 20, fontWeight: "700", color: colors.accent[500] }}>
+                    {dimensions.length}"
+                  </Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.2)" }} />
+                <View style={{ alignItems: "center" }}>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
+                    WIDTH
+                  </Text>
+                  <Text style={{ fontSize: 20, fontWeight: "700", color: colors.accent[500] }}>
+                    {dimensions.width}"
+                  </Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.2)" }} />
+                <View style={{ alignItems: "center" }}>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
+                    AREA
+                  </Text>
+                  <Text style={{ fontSize: 20, fontWeight: "700", color: colors.accent[500] }}>
+                    {dimensions.area} sq in
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.primary[600],
+                    borderRadius: 10,
+                    paddingVertical: 12,
+                    alignItems: "center",
+                  }}
+                  onPress={() => setShowSearchForm(true)}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "white" }}>
+                    Search Remnants
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.accent[500],
+                    borderRadius: 10,
+                    paddingVertical: 12,
+                    alignItems: "center",
+                  }}
+                  onPress={() => setShowDimensionsForm(true)}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "white" }}>
+                    Save to Profile
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* Photo Gallery */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ paddingLeft: 16 }}
+            contentContainerStyle={{ paddingRight: 16 }}
+          >
+            {/* Take new photo button */}
+            <Pressable
+              onPress={takePicture}
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 12,
+                backgroundColor: "rgba(0,0,0,0.7)",
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 12,
+                borderWidth: 2,
+                borderColor: "rgba(255,255,255,0.3)",
+              }}
+            >
+              <Ionicons name="camera" size={28} color="white" />
+              <Text style={{ fontSize: 10, color: "white", marginTop: 4 }}>New</Text>
+            </Pressable>
+
+            {/* Gallery photos */}
+            {photoGallery.map((photo, index) => (
+              <Pressable
+                key={photo.timestamp}
+                onPress={() => selectPhotoFromGallery(index)}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  marginRight: 12,
+                  borderWidth: selectedPhotoIndex === index ? 3 : 2,
+                  borderColor: selectedPhotoIndex === index ? colors.accent[500] : "rgba(255,255,255,0.3)",
+                }}
+              >
+                <Image
+                  source={{ uri: photo.uri }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
+                {photo.dimensions && (
+                  <View style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "rgba(0,0,0,0.8)",
+                    padding: 4,
+                  }}>
+                    <Text style={{ fontSize: 9, fontWeight: "600", color: "white", textAlign: "center" }}>
+                      {photo.dimensions.length}" × {photo.dimensions.width}"
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* Action buttons */}
+          <View style={{
+            flexDirection: "row",
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            gap: 8,
+          }}>
+            <Pressable
+              onPress={deleteLastPin}
+              disabled={pins.length === 0}
+              style={{
+                flex: 1,
+                backgroundColor: pins.length > 0 ? "rgba(239, 68, 68, 0.9)" : "rgba(100,100,100,0.5)",
+                borderRadius: 10,
+                paddingVertical: 10,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "white" }}>
+                Undo Pin
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.7)",
+                borderRadius: 10,
+                paddingVertical: 10,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.3)",
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "white" }}>
+                Close
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Save to Profile Modal */}
+        <Modal
+          visible={showDimensionsForm}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDimensionsForm(false)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}>
+            <View style={{
+              backgroundColor: colors.background.primary,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingTop: 20,
+              paddingBottom: insets.bottom + 20,
+              paddingHorizontal: 20,
+            }}>
+              <View style={{
+                width: 40,
+                height: 4,
+                backgroundColor: colors.neutral[300],
+                alignSelf: "center",
+                borderRadius: 2,
+                marginBottom: 20,
+              }} />
+
+              <Text style={{
+                fontSize: 22,
+                fontWeight: "600",
+                color: colors.text.primary,
+                marginBottom: 20,
+              }}>
+                Save Measurement
+              </Text>
+
+              {dimensions && (
+                <View style={{
+                  backgroundColor: colors.background.secondary,
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 20,
+                }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text.primary, marginBottom: 8 }}>
+                    Dimensions
+                  </Text>
+                  <Text style={{ fontSize: 16, color: colors.text.secondary }}>
+                    Length: {dimensions.length}" × Width: {dimensions.width}"
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.text.tertiary, marginTop: 4 }}>
+                    Area: {dimensions.area} sq in ({(dimensions.area / 144).toFixed(2)} sq ft)
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ flexDirection: "row", marginBottom: 20, gap: 12 }}>
+                <Pressable
+                  style={{
+                    flex: 1,
+                    backgroundColor: measurementType === "space" ? colors.accent[500] : colors.background.secondary,
+                    borderRadius: 12,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    borderWidth: 2,
+                    borderColor: measurementType === "space" ? colors.accent[500] : colors.border.main,
+                  }}
+                  onPress={() => setMeasurementType("space")}
+                >
+                  <Ionicons
+                    name="home"
+                    size={24}
+                    color={measurementType === "space" ? "white" : colors.text.secondary}
+                  />
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: measurementType === "space" ? "white" : colors.text.primary,
+                    marginTop: 4,
+                  }}>
+                    My Space
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={{
+                    flex: 1,
+                    backgroundColor: measurementType === "remnant" ? colors.accent[500] : colors.background.secondary,
+                    borderRadius: 12,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    borderWidth: 2,
+                    borderColor: measurementType === "remnant" ? colors.accent[500] : colors.border.main,
+                  }}
+                  onPress={() => setMeasurementType("remnant")}
+                >
+                  <Ionicons
+                    name="cube"
+                    size={24}
+                    color={measurementType === "remnant" ? "white" : colors.text.secondary}
+                  />
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: measurementType === "remnant" ? "white" : colors.text.primary,
+                    marginTop: 4,
+                  }}>
+                    Remnant
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Text style={{
+                fontSize: 15,
+                fontWeight: "500",
+                color: colors.text.secondary,
+                marginBottom: 8,
+              }}>
+                Notes (Optional)
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.background.secondary,
+                  borderRadius: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 15,
+                  color: colors.text.primary,
+                  marginBottom: 24,
+                  height: 80,
+                  textAlignVertical: "top",
+                }}
+                placeholder="Stone type, color, notes..."
+                placeholderTextColor={colors.text.tertiary}
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+              />
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Pressable
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.background.secondary,
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                  }}
+                  onPress={() => setShowDimensionsForm(false)}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text.primary }}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.accent[500],
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                  }}
+                  onPress={() => {
+                    saveToProfile();
+                    setShowDimensionsForm(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: "white" }}>
+                    Save
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Search Form Modal */}
+        <Modal
+          visible={showSearchForm}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowSearchForm(false)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}>
+            <View style={{
+              backgroundColor: colors.background.primary,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingTop: 20,
+              paddingBottom: insets.bottom + 20,
+              paddingHorizontal: 20,
+            }}>
+              <View style={{
+                width: 40,
+                height: 4,
+                backgroundColor: colors.neutral[300],
+                alignSelf: "center",
+                borderRadius: 2,
+                marginBottom: 20,
+              }} />
+
+              <Text style={{
+                fontSize: 22,
+                fontWeight: "600",
+                color: colors.text.primary,
+                marginBottom: 8,
+              }}>
+                Search Remnants
+              </Text>
+              <Text style={{
+                fontSize: 14,
+                color: colors.text.secondary,
+                marginBottom: 20,
+              }}>
+                Find stone remnants that fit your measured space
+              </Text>
+
+              {dimensions && (
+                <View style={{
+                  backgroundColor: colors.accent[100],
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 20,
+                  borderWidth: 2,
+                  borderColor: colors.accent[500],
+                }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text.primary, marginBottom: 8 }}>
+                    Your Space Requirements
+                  </Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <View>
+                      <Text style={{ fontSize: 12, color: colors.text.tertiary }}>Minimum Length</Text>
+                      <Text style={{ fontSize: 18, fontWeight: "700", color: colors.accent[500] }}>
+                        {dimensions.length}"
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 12, color: colors.text.tertiary }}>Minimum Width</Text>
+                      <Text style={{ fontSize: 18, fontWeight: "700", color: colors.accent[500] }}>
+                        {dimensions.width}"
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 12, color: colors.text.tertiary }}>Area Needed</Text>
+                      <Text style={{ fontSize: 18, fontWeight: "700", color: colors.accent[500] }}>
+                        {(dimensions.area / 144).toFixed(1)} sq ft
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              <Pressable
+                style={{
+                  backgroundColor: colors.accent[500],
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+                onPress={() => {
+                  setShowSearchForm(false);
+                  Alert.alert(
+                    "Search Started",
+                    `Looking for remnants: ${dimensions?.length}" × ${dimensions?.width}" or larger`,
+                    [{ text: "OK", onPress: () => navigation.goBack() }]
+                  );
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: "600", color: "white" }}>
+                  Find Matching Remnants
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={{
+                  backgroundColor: colors.background.secondary,
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                }}
+                onPress={() => setShowSearchForm(false)}
+              >
+                <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text.primary }}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  // Permission screens
+  if (!permission) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: colors.text.secondary }}>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+        <View style={{ flex: 1, padding: 20, justifyContent: "center", alignItems: "center" }}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={{ position: "absolute", top: 20, left: 20, padding: 8 }}
+          >
+            <Ionicons name="close" size={28} color={colors.text.primary} />
+          </Pressable>
+
+          <View style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: colors.accent[100],
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 24,
+          }}>
+            <Ionicons name="camera" size={40} color={colors.accent[500]} />
+          </View>
+          
+          <Text style={{ fontSize: 22, fontWeight: "600", color: colors.text.primary, marginBottom: 12, textAlign: "center" }}>
+            Camera Access Needed
+          </Text>
+          
+          <Text style={{ fontSize: 15, color: colors.text.secondary, textAlign: "center", marginBottom: 32, lineHeight: 22 }}>
+            Measure stone remnants and spaces with smart pin placement
+          </Text>
+
+          <Pressable
+            style={{
+              backgroundColor: colors.accent[500],
+              borderRadius: 12,
+              paddingVertical: 16,
+              paddingHorizontal: 32,
+              marginBottom: 12,
+            }}
+            onPress={requestPermission}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "600", color: "white" }}>
+              Grant Camera Access
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={{
+              backgroundColor: colors.background.secondary,
+              borderRadius: 12,
+              paddingVertical: 16,
+              paddingHorizontal: 32,
+              marginBottom: 12,
+            }}
+            onPress={pickFromGallery}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text.primary }}>
+              Choose from Gallery
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={{ fontSize: 15, color: colors.text.tertiary }}>Cancel</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Camera Mode
+  return (
+    <View style={{ flex: 1, backgroundColor: "black" }}>
+      <CameraView
+        ref={cameraRef}
+        style={{ flex: 1 }}
+        facing={facing}
+      >
+        <View style={{
+          position: "absolute",
+          top: insets.top,
+          left: 0,
+          right: 0,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+        }}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: "rgba(0,0,0,0.7)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="close" size={26} color="white" />
+          </Pressable>
+
+          <View style={{
+            backgroundColor: "rgba(0,0,0,0.7)",
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+          }}>
+            <Text style={{ fontSize: 15, fontWeight: "600", color: "white" }}>
+              Smart Measurement
+            </Text>
+          </View>
+
+          <View style={{ width: 44 }} />
+        </View>
+
+        <View style={{
+          position: "absolute",
+          bottom: insets.bottom,
+          left: 0,
+          right: 0,
+          paddingBottom: 30,
+          paddingHorizontal: 20,
+        }}>
+          <View style={{
+            backgroundColor: "rgba(0,0,0,0.85)",
+            borderRadius: 14,
+            padding: 16,
+            marginBottom: 20,
+          }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: "white", marginBottom: 6 }}>
+              📍 Pin & Measure Tool
+            </Text>
+            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 18 }}>
+              • Drop pins by tapping{"\n"}
+              • Drag lines between pins{"\n"}
+              • Auto-calculates dimensions
+            </Text>
+          </View>
+
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "space-around",
+            alignItems: "center",
+          }}>
+            <Pressable
+              onPress={pickFromGallery}
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 27,
+                backgroundColor: "rgba(0,0,0,0.7)",
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 2,
+                borderColor: "white",
+              }}
+            >
+              <Ionicons name="images" size={26} color="white" />
+            </Pressable>
+
+            <Pressable
+              onPress={takePicture}
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: 38,
+                backgroundColor: "white",
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 5,
+                borderColor: colors.accent[500],
+              }}
+            >
+              <View style={{
+                width: 62,
+                height: 62,
+                borderRadius: 31,
+                backgroundColor: colors.accent[500],
+              }} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setFacing(facing === "back" ? "front" : "back")}
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 27,
+                backgroundColor: "rgba(0,0,0,0.7)",
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 2,
+                borderColor: "white",
+              }}
+            >
+              <Ionicons name="camera-reverse" size={26} color="white" />
+            </Pressable>
+          </View>
+        </View>
+      </CameraView>
+    </View>
+  );
+}

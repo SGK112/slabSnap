@@ -1,0 +1,149 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../nav";
+import { useAuthStore } from "../state/authStore";
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Signup">;
+
+export default function SignupScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const { signup } = useAuthStore();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSignup = async () => {
+    if (!name || !email) {
+      setError("Please enter your name and email");
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await signup(email, password, name);
+      // Navigate to main app after successful signup
+      navigation.replace("MainTabs");
+    } catch (err) {
+      setError("Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
+      >
+        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+          <View className="flex-1 px-6 pt-20">
+            <View className="mb-12">
+              <Text className="text-4xl mb-2" style={{ fontWeight: '300', color: '#0f172a', letterSpacing: -1 }}>
+                cutStone
+              </Text>
+              <Text className="text-base" style={{ color: '#64748b' }}>
+                Create an account
+              </Text>
+            </View>
+
+            {error ? (
+              <View className="rounded-lg p-4 mb-6" style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' }}>
+                <Text className="text-sm" style={{ color: '#991b1b' }}>{error}</Text>
+              </View>
+            ) : null}
+
+            <View className="mb-5">
+              <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                Full Name
+              </Text>
+              <TextInput
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                placeholder="John Doe"
+                placeholderTextColor="#cbd5e1"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View className="mb-5">
+              <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                Email
+              </Text>
+              <TextInput
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                placeholder="your@email.com"
+                placeholderTextColor="#cbd5e1"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View className="mb-8">
+              <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                Password
+              </Text>
+              <TextInput
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                placeholder="••••••••"
+                placeholderTextColor="#cbd5e1"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <Pressable
+              className="rounded-lg py-3 items-center mb-6"
+              style={{ backgroundColor: '#0f172a' }}
+              onPress={handleSignup}
+              disabled={loading}
+            >
+              <Text className="text-sm" style={{ fontWeight: '400', color: 'white' }}>
+                {loading ? "Creating Account..." : "Sign Up"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              className="items-center"
+              onPress={() => navigation.navigate("Login")}
+            >
+              <Text className="text-sm" style={{ color: '#64748b' }}>
+                {"Already have an account? "}
+                <Text style={{ color: '#0f172a', fontWeight: '400' }}>Sign In</Text>
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
