@@ -24,7 +24,7 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['*'], // In production, specify allowed origins
+  origin: true, // Reflect the request origin (allows all origins including null)
   credentials: true,
 }));
 
