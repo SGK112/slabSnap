@@ -257,6 +257,64 @@ body {
     font-size: 1rem;
 }
 
+/* 3D Map Badge */
+.hero-badge-3d {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    padding: 10px 20px 10px 12px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
+    transition: all 0.3s ease;
+}
+
+.hero-badge-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+}
+
+.map-3d-container {
+    width: 60px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.map-3d {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+}
+
+.map-3d .store-pin {
+    animation: float 3s ease-in-out infinite;
+}
+
+.map-3d .location-pin {
+    animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.badge-text {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    letter-spacing: 0.3px;
+}
+
 .hero h1 {
     font-size: 3.25rem;
     font-weight: 800;
