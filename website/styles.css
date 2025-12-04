@@ -76,24 +76,43 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     text-decoration: none;
 }
 
 .logo-img {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.logo-content {
+    display: flex;
+    flex-direction: column;
 }
 
 .logo-text {
-    font-size: 1.25rem;
-    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 900;
     color: var(--navy);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
 }
 
 .logo-ai {
     color: var(--primary);
+    font-weight: 900;
+}
+
+.logo-tagline {
+    font-size: 0.65rem;
+    color: var(--gray-500);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    margin-top: 1px;
 }
 
 .nav-links {
