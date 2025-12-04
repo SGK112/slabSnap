@@ -257,62 +257,69 @@ body {
     font-size: 1rem;
 }
 
-/* 3D Map Badge */
-.hero-badge-3d {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 2px solid #f59e0b;
-    padding: 10px 20px 10px 12px;
-    border-radius: 100px;
-    margin-bottom: 24px;
-    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
-    transition: all 0.3s ease;
-}
-
-.hero-badge-3d:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
-}
-
-.map-3d-container {
-    width: 60px;
-    height: 40px;
+/* 3D Hero Illustration */
+.hero-3d-illustration {
     display: flex;
-    align-items: center;
     justify-content: center;
+    margin-bottom: 32px;
 }
 
-.map-3d {
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+.map-3d-hero {
+    width: 220px;
+    height: 180px;
+    filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.15));
+    transition: transform 0.4s ease;
 }
 
-.map-3d .store-pin {
-    animation: float 3s ease-in-out infinite;
+.hero-3d-illustration:hover .map-3d-hero {
+    transform: scale(1.05) translateY(-5px);
 }
 
-.map-3d .location-pin {
-    animation: bounce 2s ease-in-out infinite;
+/* Store floating animation */
+.store-float {
+    animation: storeFloat 4s ease-in-out infinite;
+    transform-origin: center bottom;
 }
 
-@keyframes float {
+@keyframes storeFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+/* Pin bounce animation */
+.pin-bounce {
+    animation: pinBounce 2s ease-in-out infinite;
+    transform-origin: center bottom;
+}
+
+@keyframes pinBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+/* Building float animation */
+.building-float {
+    animation: buildingFloat 3s ease-in-out infinite;
+}
+
+@keyframes buildingFloat {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-3px); }
 }
 
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+/* Sparkle animation */
+.sparkle circle {
+    animation: sparkle 2s ease-in-out infinite;
 }
 
-.badge-text {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    letter-spacing: 0.3px;
+.sparkle circle:nth-child(1) { animation-delay: 0s; }
+.sparkle circle:nth-child(2) { animation-delay: 0.5s; }
+.sparkle circle:nth-child(3) { animation-delay: 1s; }
+.sparkle circle:nth-child(4) { animation-delay: 1.5s; }
+
+@keyframes sparkle {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
 }
 
 .hero h1 {
