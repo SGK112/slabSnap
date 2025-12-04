@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Contact form submission
     const contactForm = document.getElementById('contactForm');
     if (contactForm) {
-        contactForm.addEventListener('submit', (e) => {
+        contactForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const name = document.getElementById('name').value;
@@ -231,36 +231,48 @@ document.addEventListener('DOMContentLoaded', () => {
             const subject = document.getElementById('subject').value;
             const message = document.getElementById('message').value;
 
-            // Get subject text
-            const subjectSelect = document.getElementById('subject');
-            const subjectText = subjectSelect.options[subjectSelect.selectedIndex].text;
+            // Get submit button and show loading state
+            const submitBtn = contactForm.querySelector('button[type="submit"]');
+            const originalBtnContent = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> Sending...';
 
-            // Create mailto link - emails go to help.remodely@gmail.com but show info@remodely.ai
-            const mailtoSubject = encodeURIComponent(`[REMODELY.AI] ${subjectText} from ${name}`);
-            const mailtoBody = encodeURIComponent(
-                `Name: ${name}\n` +
-                `Email: ${email}\n` +
-                `Subject: ${subjectText}\n\n` +
-                `Message:\n${message}\n\n` +
-                `---\nSent from REMODELY.AI website contact form`
-            );
+            try {
+                // Send to backend API
+                const response = await fetch('https://remodely-backend.onrender.com/api/contact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, subject, message }),
+                });
 
-            // Open mailto with the actual receiving email
-            window.location.href = `mailto:help.remodely@gmail.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+                const data = await response.json();
 
-            // Show success message in modal
-            const modalContent = contactModal.querySelector('.modal');
-            modalContent.innerHTML = `
-                <button class="modal-close" onclick="location.reload()">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-                <div class="form-success show">
-                    <span class="material-symbols-outlined">check_circle</span>
-                    <h3>Opening Email Client</h3>
-                    <p>Your default email app should open shortly.<br>If not, email us at <a href="mailto:info@remodely.ai">info@remodely.ai</a></p>
-                    <button type="button" class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">Done</button>
-                </div>
-            `;
+                if (response.ok && data.success) {
+                    // Show success message in modal
+                    const modalContent = contactModal.querySelector('.modal');
+                    modalContent.innerHTML = `
+                        <button class="modal-close" onclick="location.reload()">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                        <div class="form-success show">
+                            <span class="material-symbols-outlined">check_circle</span>
+                            <h3>Message Sent!</h3>
+                            <p>Thank you for contacting us. We'll get back to you soon!</p>
+                            <button type="button" class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">Done</button>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Failed to send message');
+                }
+            } catch (error) {
+                console.error('Contact form error:', error);
+                // Show error message
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnContent;
+                alert('Failed to send message. Please try again or email us at info@remodely.ai');
+            }
         });
     }
 

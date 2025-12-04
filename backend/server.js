@@ -14,6 +14,7 @@ import pool, { initDatabase } from './db/index.js';
 import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
 import shopifyRoutes from './routes/shopify.js';
+import contactRoutes from './routes/contact.js';
 
 dotenv.config();
 
@@ -80,6 +81,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/shopify', shopifyRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
