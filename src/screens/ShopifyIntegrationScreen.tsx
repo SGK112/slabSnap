@@ -1,14 +1,13 @@
 /**
  * REMODELY.AI - Shopify Integration Screen
- * Allows users to connect and manage their Shopify store via OAuth
+ * Simple OAuth-based Shopify connection - no API keys needed!
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TextInput,
   Pressable,
   Image,
   Alert,
@@ -16,6 +15,11 @@ import {
   StyleSheet,
   RefreshControl,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -26,13 +30,11 @@ import { useAuthStore } from '../state/authStore';
 import { ShopifyProduct } from '../types/shopify';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import { API_CONFIG } from '../config/env';
 
 export default function ShopifyIntegrationScreen() {
   const navigation = useNavigation();
   const { user } = useAuthStore();
-  // Use user ID as mock auth token for demo purposes
   const token = user?.id || '';
   const {
     isConnected,
@@ -43,26 +45,19 @@ export default function ShopifyIntegrationScreen() {
     productsLoading,
     isSyncing,
     syncStatus,
-    connect,
     disconnect,
     checkStatus,
     fetchProducts,
     importProduct,
     syncAll,
-    clearError,
   } = useShopifyStore();
 
-  const [storeDomain, setStoreDomain] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'settings'>('products');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-
-  // Get the redirect URI for OAuth callback
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: 'remodely',
-    path: 'shopify-callback',
-  });
+  const [storeName, setStoreName] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (token) {
@@ -76,58 +71,71 @@ export default function ShopifyIntegrationScreen() {
     }
   }, [isConnected, token]);
 
-  // Handle OAuth login with Shopify
-  const handleShopifyLogin = async () => {
-    if (!storeDomain.trim()) {
-      Alert.alert('Store Name Required', 'Please enter your Shopify store name to continue');
+  // OAuth connect - requires store name
+  const handleConnectShopify = async () => {
+    // Validate store name
+    const cleanStore = storeName.trim().toLowerCase().replace(/\.myshopify\.com$/, '');
+
+    if (!cleanStore) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert('Store Name Required', 'Please enter your Shopify store name');
       return;
     }
 
-    // Clean up domain
-    let cleanDomain = storeDomain.trim().toLowerCase();
-    cleanDomain = cleanDomain.replace(/^https?:\/\//, '');
-    cleanDomain = cleanDomain.replace(/\/$/, '');
-    cleanDomain = cleanDomain.replace('.myshopify.com', '');
-
+    Keyboard.dismiss();
     setIsAuthenticating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // First, get the OAuth URL from the backend (which generates the state token)
-      const response = await fetch(`${API_CONFIG.baseUrl}/api/shopify/auth/url?shop=${cleanDomain}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to get OAuth URL');
-      }
+      // Get OAuth URL from backend
+      const response = await fetch(
+        `${API_CONFIG.baseUrl}/api/shopify/auth/url?shop=${encodeURIComponent(cleanStore)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       const data = await response.json();
 
       if (!data.success || !data.url) {
-        throw new Error(data.message || 'Invalid OAuth response');
+        throw new Error(data.message || 'Could not get authorization URL');
       }
 
-      // Open the Shopify OAuth URL in a web browser
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+      // Open OAuth flow in browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        'remodely://shopify-callback'
+      );
 
-      if (result.type === 'success' && result.url) {
-        // The callback page shows success/error - check connection status
+      // Check status after OAuth completes
+      if (result.type === 'success' || result.type === 'dismiss') {
+        // Give backend time to process
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await checkStatus(token);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Connected!', 'Your Shopify store has been connected successfully.');
-        setStoreDomain('');
-      } else if (result.type === 'cancel') {
-        // User cancelled
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        // Re-check after status update
+        const statusCheck = await fetch(
+          `${API_CONFIG.baseUrl}/api/shopify/status`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        );
+        const statusData = await statusCheck.json();
+
+        if (statusData.connected) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert('Connected!', `Your Shopify store "${statusData.store?.name || cleanStore}" is now connected.`);
+        }
       }
-    } catch (error) {
-      console.error('Shopify OAuth error:', error);
+    } catch (error: any) {
+      console.error('Shopify connect error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Connection Error', error instanceof Error ? error.message : 'Unable to connect to Shopify. Please try again.');
+      Alert.alert('Connection Error', error.message || 'Unable to connect. Please try again.');
     } finally {
       setIsAuthenticating(false);
     }
@@ -136,7 +144,7 @@ export default function ShopifyIntegrationScreen() {
   const handleDisconnect = () => {
     Alert.alert(
       'Disconnect Store',
-      'Are you sure you want to disconnect your Shopify store? Your synced products will remain in Remodely.',
+      'Are you sure you want to disconnect your Shopify store?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -176,7 +184,7 @@ export default function ShopifyIntegrationScreen() {
                 await importProduct(token, productId);
               }
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Success', `Imported ${selectedProducts.size} product(s) to Remodely`);
+              Alert.alert('Success', `Imported ${selectedProducts.size} product(s)`);
               setSelectedProducts(new Set());
             } catch (error) {
               Alert.alert('Import Failed', 'Some products could not be imported');
@@ -189,25 +197,12 @@ export default function ShopifyIntegrationScreen() {
 
   const handleSyncAll = async () => {
     if (!token) return;
-
-    Alert.alert(
-      'Sync Products',
-      'Sync all products between Shopify and Remodely?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sync',
-          onPress: async () => {
-            try {
-              await syncAll(token, 'both');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch (error) {
-              Alert.alert('Sync Failed', 'Could not complete sync');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await syncAll(token, 'both');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert('Sync Failed', 'Could not complete sync');
+    }
   };
 
   const toggleProductSelection = (productId: string) => {
@@ -221,135 +216,138 @@ export default function ShopifyIntegrationScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const openShopifyHelp = () => {
-    Linking.openURL('https://www.shopify.com/');
-  };
-
-  // Not connected view - Simple OAuth login
+  // Not connected - Connect screen with store name input
   if (!isConnected) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Shopify Integration</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.header}>
+                <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+                  <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+                </Pressable>
+                <Text style={styles.headerTitle}>Shopify</Text>
+                <View style={{ width: 40 }} />
+              </View>
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.connectContent}>
-          {/* Shopify Logo/Icon */}
-          <View style={styles.logoContainer}>
-            <View style={styles.shopifyLogo}>
-              <Ionicons name="bag-handle" size={64} color="#95BF47" />
+              <ScrollView
+                ref={scrollViewRef}
+                style={styles.scrollView}
+                contentContainerStyle={styles.connectContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Shopify Logo */}
+                <View style={styles.logoContainer}>
+                  <View style={styles.shopifyLogo}>
+                    <Ionicons name="bag-handle" size={60} color="#95BF47" />
+                  </View>
+                </View>
+
+                <Text style={styles.connectTitle}>Connect Your Shopify Store</Text>
+                <Text style={styles.connectSubtitle}>
+                  Login with Shopify OAuth - no API keys needed!
+                </Text>
+
+                {/* Store Name Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Your Store Name</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.storeInput}
+                      placeholder="mystore"
+                      placeholderTextColor="#9ca3af"
+                      value={storeName}
+                      onChangeText={setStoreName}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      returnKeyType="done"
+                      onSubmitEditing={handleConnectShopify}
+                      onFocus={() => {
+                        setTimeout(() => {
+                          scrollViewRef.current?.scrollToEnd({ animated: true });
+                        }, 200);
+                      }}
+                    />
+                    <Text style={styles.inputSuffix}>.myshopify.com</Text>
+                  </View>
+                  <Text style={styles.inputHint}>
+                    Enter the name from your Shopify URL
+                  </Text>
+                </View>
+
+                {connectionError && (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                    <Text style={styles.errorText}>{connectionError}</Text>
+                  </View>
+                )}
+
+                {/* Connect Button */}
+                <Pressable
+                  style={[
+                    styles.connectButton,
+                    (isAuthenticating || isConnecting || !storeName.trim()) && styles.connectButtonDisabled
+                  ]}
+                  onPress={handleConnectShopify}
+                  disabled={isAuthenticating || isConnecting}
+                >
+                  {isAuthenticating || isConnecting ? (
+                    <>
+                      <ActivityIndicator color="white" size="small" />
+                      <Text style={styles.connectButtonText}>Connecting...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="log-in-outline" size={24} color="white" />
+                      <Text style={styles.connectButtonText}>Connect with Shopify</Text>
+                    </>
+                  )}
+                </Pressable>
+
+                <View style={styles.securityNote}>
+                  <Ionicons name="lock-closed" size={16} color={colors.text.tertiary} />
+                  <Text style={styles.securityNoteText}>
+                    Secure OAuth login - we never see your password
+                  </Text>
+                </View>
+
+                {/* Benefits - compact */}
+                <View style={styles.benefitsRow}>
+                  <View style={styles.benefitChip}>
+                    <Ionicons name="sync" size={16} color="#95BF47" />
+                    <Text style={styles.benefitChipText}>Auto sync</Text>
+                  </View>
+                  <View style={styles.benefitChip}>
+                    <Ionicons name="cube" size={16} color="#95BF47" />
+                    <Text style={styles.benefitChipText}>Products</Text>
+                  </View>
+                  <View style={styles.benefitChip}>
+                    <Ionicons name="receipt" size={16} color="#95BF47" />
+                    <Text style={styles.benefitChipText}>Orders</Text>
+                  </View>
+                </View>
+
+                {/* Help link */}
+                <Pressable
+                  onPress={() => Linking.openURL('https://www.shopify.com/')}
+                  style={styles.helpLink}
+                >
+                  <Text style={styles.helpLinkText}>Don't have a Shopify store?</Text>
+                  <Ionicons name="open-outline" size={14} color="#95BF47" />
+                </Pressable>
+
+                {/* Extra padding for keyboard */}
+                <View style={{ height: 100 }} />
+              </ScrollView>
             </View>
-          </View>
-
-          <Text style={styles.connectTitle}>Connect Your Shopify Store</Text>
-          <Text style={styles.connectSubtitle}>
-            Sync your stone inventory between Remodely and your Shopify store. Just enter your store name and log in with Shopify.
-          </Text>
-
-          {/* Features */}
-          <View style={styles.featuresContainer}>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="sync" size={22} color="#95BF47" />
-              </View>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Two-Way Sync</Text>
-                <Text style={styles.featureDescription}>Keep inventory in sync automatically</Text>
-              </View>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="cloud-upload" size={22} color="#95BF47" />
-              </View>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Easy Import</Text>
-                <Text style={styles.featureDescription}>Import products to Remodely listings</Text>
-              </View>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name="shield-checkmark" size={22} color="#95BF47" />
-              </View>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Secure OAuth</Text>
-                <Text style={styles.featureDescription}>Login securely with your Shopify account</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Simple Store Name Input + OAuth Button */}
-          <View style={styles.formContainer}>
-            <Text style={styles.inputLabel}>Your Shopify Store Name</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="your-store-name"
-                placeholderTextColor={colors.text.tertiary}
-                value={storeDomain}
-                onChangeText={setStoreDomain}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              <Text style={styles.inputSuffix}>.myshopify.com</Text>
-            </View>
-
-            <Text style={styles.helperText}>
-              Enter just your store name (e.g., "my-stone-shop")
-            </Text>
-
-            {connectionError && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={20} color="#dc2626" />
-                <Text style={styles.errorText}>{connectionError}</Text>
-              </View>
-            )}
-
-            {/* OAuth Login Button */}
-            <Pressable
-              style={[
-                styles.connectButton,
-                (isAuthenticating || isConnecting || !storeDomain.trim()) && styles.connectButtonDisabled,
-              ]}
-              onPress={handleShopifyLogin}
-              disabled={isAuthenticating || isConnecting || !storeDomain.trim()}
-            >
-              {isAuthenticating || isConnecting ? (
-                <>
-                  <ActivityIndicator color="white" />
-                  <Text style={styles.connectButtonText}>Connecting...</Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="log-in-outline" size={22} color="white" />
-                  <Text style={styles.connectButtonText}>Login with Shopify</Text>
-                </>
-              )}
-            </Pressable>
-
-            {/* Shopify branding note */}
-            <View style={styles.securityNote}>
-              <Ionicons name="lock-closed" size={14} color={colors.text.tertiary} />
-              <Text style={styles.securityNoteText}>
-                You'll be redirected to Shopify to authorize this app securely
-              </Text>
-            </View>
-          </View>
-
-          {/* Don't have a store? */}
-          <Pressable onPress={openShopifyHelp} style={styles.createStoreLink}>
-            <Text style={styles.createStoreLinkText}>Don't have a Shopify store? </Text>
-            <Text style={[styles.createStoreLinkText, { color: '#95BF47', fontWeight: '600' }]}>
-              Create one
-            </Text>
-            <Ionicons name="open-outline" size={14} color="#95BF47" style={{ marginLeft: 4 }} />
-          </Pressable>
-        </ScrollView>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
@@ -357,38 +355,36 @@ export default function ShopifyIntegrationScreen() {
   // Connected view
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.headerTitle}>Shopify</Text>
-        <Pressable onPress={handleSyncAll} disabled={isSyncing}>
+        <Pressable onPress={handleSyncAll} disabled={isSyncing} style={styles.syncButton}>
           {isSyncing ? (
-            <ActivityIndicator size="small" color={colors.primary[600]} />
+            <ActivityIndicator size="small" color="#95BF47" />
           ) : (
-            <Ionicons name="sync" size={24} color={colors.primary[600]} />
+            <Ionicons name="sync" size={24} color="#95BF47" />
           )}
         </Pressable>
       </View>
 
-      {/* Store Info Card */}
+      {/* Store Card */}
       <View style={styles.storeCard}>
         <View style={styles.storeCardHeader}>
           <View style={styles.storeIconContainer}>
-            <Ionicons name="bag-handle" size={28} color="#95BF47" />
+            <Ionicons name="bag-handle" size={32} color="#95BF47" />
           </View>
           <View style={styles.storeInfo}>
             <Text style={styles.storeName}>{store?.name || 'Your Store'}</Text>
             <Text style={styles.storeDomain}>{store?.domain}</Text>
           </View>
           <View style={styles.connectedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
             <Text style={styles.connectedText}>Connected</Text>
           </View>
         </View>
 
-        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{store?.productCount || products.length}</Text>
@@ -409,30 +405,17 @@ export default function ShopifyIntegrationScreen() {
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        <Pressable
-          style={[styles.tab, activeTab === 'products' && styles.tabActive]}
-          onPress={() => setActiveTab('products')}
-        >
-          <Text style={[styles.tabText, activeTab === 'products' && styles.tabTextActive]}>
-            Products
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === 'orders' && styles.tabActive]}
-          onPress={() => setActiveTab('orders')}
-        >
-          <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>
-            Orders
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === 'settings' && styles.tabActive]}
-          onPress={() => setActiveTab('settings')}
-        >
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>
-            Settings
-          </Text>
-        </Pressable>
+        {['products', 'orders', 'settings'].map((tab) => (
+          <Pressable
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => setActiveTab(tab as any)}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       {/* Products Tab */}
@@ -440,34 +423,28 @@ export default function ShopifyIntegrationScreen() {
         <>
           {selectedProducts.size > 0 && (
             <View style={styles.selectionBar}>
-              <Text style={styles.selectionText}>
-                {selectedProducts.size} selected
-              </Text>
+              <Text style={styles.selectionText}>{selectedProducts.size} selected</Text>
               <Pressable style={styles.importButton} onPress={handleImportSelected}>
                 <Ionicons name="download" size={18} color="white" />
-                <Text style={styles.importButtonText}>Import to Remodely</Text>
+                <Text style={styles.importButtonText}>Import</Text>
               </Pressable>
             </View>
           )}
 
           <ScrollView
             style={styles.productsList}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           >
             {productsLoading && products.length === 0 ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary[600]} />
+                <ActivityIndicator size="large" color="#95BF47" />
                 <Text style={styles.loadingText}>Loading products...</Text>
               </View>
             ) : products.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="cube-outline" size={48} color={colors.text.tertiary} />
-                <Text style={styles.emptyTitle}>No Products</Text>
-                <Text style={styles.emptySubtitle}>
-                  Your Shopify store doesn't have any active products
-                </Text>
+                <Ionicons name="cube-outline" size={56} color={colors.text.tertiary} />
+                <Text style={styles.emptyTitle}>No Products Yet</Text>
+                <Text style={styles.emptySubtitle}>Your Shopify products will appear here</Text>
               </View>
             ) : (
               products.map((product) => (
@@ -485,12 +462,10 @@ export default function ShopifyIntegrationScreen() {
 
       {/* Orders Tab */}
       {activeTab === 'orders' && (
-        <View style={styles.comingSoonContainer}>
-          <Ionicons name="receipt-outline" size={48} color={colors.text.tertiary} />
-          <Text style={styles.comingSoonTitle}>Orders Coming Soon</Text>
-          <Text style={styles.comingSoonSubtitle}>
-            Order management will be available in a future update
-          </Text>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="receipt-outline" size={56} color={colors.text.tertiary} />
+          <Text style={styles.emptyTitle}>Orders Coming Soon</Text>
+          <Text style={styles.emptySubtitle}>Order management will be available soon</Text>
         </View>
       )}
 
@@ -498,38 +473,9 @@ export default function ShopifyIntegrationScreen() {
       {activeTab === 'settings' && (
         <ScrollView style={styles.settingsList}>
           <View style={styles.settingsSection}>
-            <Text style={styles.settingsSectionTitle}>Sync Settings</Text>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Auto-sync inventory</Text>
-                <Text style={styles.settingDescription}>
-                  Automatically sync inventory changes
-                </Text>
-              </View>
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
-              </View>
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Sync frequency</Text>
-                <Text style={styles.settingDescription}>
-                  How often to sync with Shopify
-                </Text>
-              </View>
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.settingsSection}>
-            <Text style={styles.settingsSectionTitle}>Store Connection</Text>
-
+            <Text style={styles.settingsSectionTitle}>Connection</Text>
             <Pressable style={styles.disconnectButton} onPress={handleDisconnect}>
-              <Ionicons name="unlink" size={20} color="#dc2626" />
+              <Ionicons name="unlink" size={22} color="#dc2626" />
               <Text style={styles.disconnectButtonText}>Disconnect Store</Text>
             </Pressable>
           </View>
@@ -539,7 +485,6 @@ export default function ShopifyIntegrationScreen() {
   );
 }
 
-// Product Card Component
 function ProductCard({
   product,
   isSelected,
@@ -557,8 +502,8 @@ function ProductCard({
       <View style={styles.productCheckbox}>
         <Ionicons
           name={isSelected ? 'checkbox' : 'square-outline'}
-          size={24}
-          color={isSelected ? colors.primary[600] : colors.text.tertiary}
+          size={26}
+          color={isSelected ? '#95BF47' : colors.text.tertiary}
         />
       </View>
 
@@ -566,26 +511,13 @@ function ProductCard({
         <Image source={{ uri: product.images[0].src }} style={styles.productImage} />
       ) : (
         <View style={[styles.productImage, styles.productImagePlaceholder]}>
-          <Ionicons name="image-outline" size={24} color={colors.text.tertiary} />
+          <Ionicons name="image-outline" size={28} color={colors.text.tertiary} />
         </View>
       )}
 
       <View style={styles.productInfo}>
-        <Text style={styles.productTitle} numberOfLines={2}>
-          {product.title}
-        </Text>
-        <Text style={styles.productType}>{product.productType || 'No type'}</Text>
-        <View style={styles.productMeta}>
-          <Text style={styles.productPrice}>
-            ${product.variants[0]?.price || '0.00'}
-          </Text>
-          {product.syncedToRemodely && (
-            <View style={styles.syncedBadge}>
-              <Ionicons name="checkmark" size={12} color="#10b981" />
-              <Text style={styles.syncedBadgeText}>Synced</Text>
-            </View>
-          )}
-        </View>
+        <Text style={styles.productTitle} numberOfLines={2}>{product.title}</Text>
+        <Text style={styles.productPrice}>${product.variants[0]?.price || '0.00'}</Text>
       </View>
     </Pressable>
   );
@@ -594,140 +526,142 @@ function ProductCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: '#f9fafb',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
+    borderBottomColor: '#e5e7eb',
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 22,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: colors.text.primary,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  syncButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
   },
   connectContent: {
     padding: 24,
+    alignItems: 'center',
   },
   logoContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
+    marginTop: 24,
+    marginBottom: 32,
   },
   shopifyLogo: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
+    width: 120,
+    height: 120,
+    borderRadius: 32,
     backgroundColor: '#f0fdf4',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#95BF47',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   connectTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text.primary,
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#111827',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   connectSubtitle: {
     fontSize: 15,
-    color: colors.text.secondary,
+    color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 32,
     lineHeight: 22,
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
-  featuresContainer: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
-    gap: 16,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  featureIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#f0fdf4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 2,
-  },
-  featureDescription: {
-    fontSize: 13,
-    color: colors.text.tertiary,
-  },
-  formContainer: {
-    gap: 16,
+  inputContainer: {
+    width: '100%',
+    marginBottom: 24,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.primary,
+    color: '#374151',
     marginBottom: 8,
   },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: colors.border.main,
     borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 52,
   },
-  input: {
-    fontSize: 16,
-    color: colors.text.primary,
+  storeInput: {
     flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    paddingVertical: 0,
   },
   inputSuffix: {
     fontSize: 14,
-    color: colors.text.tertiary,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  inputHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 6,
     marginLeft: 4,
   },
-  helpLink: {
+  benefitsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  benefitChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    alignSelf: 'flex-start',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  helpLinkText: {
+  benefitChipText: {
     fontSize: 13,
-    color: colors.primary[600],
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#166534',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: '#fee2e2',
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+    width: '100%',
   },
   errorText: {
     fontSize: 14,
@@ -735,149 +669,153 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   connectButton: {
-    backgroundColor: '#95BF47',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 8,
+    gap: 12,
+    backgroundColor: '#95BF47',
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    width: '100%',
+    shadowColor: '#95BF47',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   connectButtonDisabled: {
     opacity: 0.7,
   },
   connectButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: 'white',
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.text.tertiary,
-    marginTop: -8,
   },
   securityNote: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 8,
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 20,
   },
   securityNoteText: {
-    fontSize: 12,
-    color: colors.text.tertiary,
+    fontSize: 13,
+    color: '#9ca3af',
     textAlign: 'center',
   },
-  createStoreLink: {
+  helpLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
     marginTop: 32,
     paddingVertical: 12,
   },
-  createStoreLinkText: {
-    fontSize: 14,
-    color: colors.text.secondary,
+  helpLinkText: {
+    fontSize: 15,
+    color: '#95BF47',
+    fontWeight: '600',
   },
   storeCard: {
     margin: 16,
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
   storeCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   storeIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: '#f0fdf4',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   storeInfo: {
     flex: 1,
   },
   storeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
   },
   storeDomain: {
-    fontSize: 13,
-    color: colors.text.tertiary,
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
   },
   connectedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     backgroundColor: '#dcfce7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   connectedText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#10b981',
   },
   statsRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: colors.border.light,
-    paddingTop: 16,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 20,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text.primary,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
   },
   statLabel: {
-    fontSize: 12,
-    color: colors.text.tertiary,
-    marginTop: 2,
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 4,
   },
   statDivider: {
     width: 1,
-    backgroundColor: colors.border.light,
+    backgroundColor: '#f3f4f6',
   },
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
+    borderBottomColor: '#e5e7eb',
   },
   tab: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginRight: 4,
   },
   tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary[600],
+    borderBottomWidth: 3,
+    borderBottomColor: '#95BF47',
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text.tertiary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#9ca3af',
   },
   tabTextActive: {
-    color: colors.primary[600],
-    fontWeight: '600',
+    color: '#95BF47',
   },
   selectionBar: {
     flexDirection: 'row',
@@ -885,23 +823,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: colors.primary[50],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary[100],
+    backgroundColor: '#f0fdf4',
   },
   selectionText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: colors.primary[600],
+    color: '#95BF47',
   },
   importButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.primary[600],
+    backgroundColor: '#95BF47',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   importButtonText: {
     fontSize: 14,
@@ -910,54 +846,56 @@ const styles = StyleSheet.create({
   },
   productsList: {
     flex: 1,
+    backgroundColor: 'white',
   },
   loadingContainer: {
-    padding: 48,
+    padding: 60,
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: colors.text.tertiary,
+    marginTop: 16,
+    fontSize: 15,
+    color: '#6b7280',
   },
   emptyContainer: {
-    padding: 48,
+    flex: 1,
+    padding: 60,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginTop: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 20,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: colors.text.tertiary,
+    fontSize: 15,
+    color: '#6b7280',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   productCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-    backgroundColor: 'white',
+    borderBottomColor: '#f3f4f6',
   },
   productCardSelected: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: '#f0fdf4',
   },
   productCheckbox: {
-    marginRight: 12,
+    marginRight: 14,
   },
   productImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    marginRight: 14,
   },
   productImagePlaceholder: {
-    backgroundColor: colors.background.secondary,
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -965,115 +903,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  productType: {
-    fontSize: 12,
-    color: colors.text.tertiary,
-    marginBottom: 4,
-  },
-  productMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    color: '#111827',
+    marginBottom: 6,
   },
   productPrice: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.text.primary,
-  },
-  syncedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  syncedBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#10b981',
-  },
-  comingSoonContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 48,
-  },
-  comingSoonTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginTop: 16,
-  },
-  comingSoonSubtitle: {
-    fontSize: 14,
-    color: colors.text.tertiary,
-    textAlign: 'center',
-    marginTop: 4,
+    color: '#95BF47',
   },
   settingsList: {
     flex: 1,
+    backgroundColor: 'white',
   },
   settingsSection: {
-    padding: 16,
+    padding: 20,
   },
   settingsSectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.text.tertiary,
+    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-  },
-  settingInfo: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.text.primary,
-  },
-  settingDescription: {
-    fontSize: 13,
-    color: colors.text.tertiary,
-    marginTop: 2,
-  },
-  comingSoonBadge: {
-    backgroundColor: colors.background.secondary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  comingSoonBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.tertiary,
+    marginBottom: 16,
   },
   disconnectButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
+    gap: 10,
+    paddingVertical: 16,
     backgroundColor: '#fee2e2',
-    borderRadius: 12,
+    borderRadius: 14,
   },
   disconnectButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#dc2626',
   },
