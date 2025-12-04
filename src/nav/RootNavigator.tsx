@@ -41,6 +41,7 @@ import VendorRelationshipsScreen from "../screens/VendorRelationshipsScreen";
 import AIAssistantScreen from "../screens/AIAssistantScreen";
 import CreateAdScreen from "../screens/CreateAdScreen";
 import PurchaseAdCreditsScreen from "../screens/PurchaseAdCreditsScreen";
+import ShopifyIntegrationScreen from "../screens/ShopifyIntegrationScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -72,6 +73,7 @@ export type RootStackParamList = {
   AIAssistant: undefined;
   CreateAd: undefined;
   PurchaseAdCredits: undefined;
+  ShopifyIntegration: undefined;
 };
 
 export type TabParamList = {
@@ -398,6 +400,13 @@ export default function RootNavigator() {
           component={PurchaseAdCreditsScreen}
           options={{
             presentation: "modal",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="ShopifyIntegration"
+          component={ShopifyIntegrationScreen}
+          options={{
             headerShown: false,
           }}
         />

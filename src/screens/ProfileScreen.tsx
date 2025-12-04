@@ -272,6 +272,13 @@ export default function ProfileScreen() {
       onPress: () => navigation.navigate('PlatformIntegrations' as any),
     },
     {
+      icon: "bag-handle",
+      iconBg: '#95bf47',
+      title: "Shopify Integration",
+      subtitle: "Sync products with your Shopify store",
+      onPress: () => navigation.navigate('ShopifyIntegration' as any),
+    },
+    {
       icon: "shield-checkmark-outline",
       iconBg: '#059669',
       title: t.profile.privacySafety,
