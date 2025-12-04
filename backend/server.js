@@ -8,9 +8,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
+import pool, { initDatabase } from './db/index.js';
 import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
 import shopifyRoutes from './routes/shopify.js';
@@ -42,18 +42,23 @@ app.use(express.urlencoded({ extended: true }));
 // Logging
 app.use(morgan('combined'));
 
-// Connect to MongoDB
+// Connect to PostgreSQL
 const connectDB = async () => {
-  if (!process.env.MONGODB_URI) {
-    console.log('⚠️ No MONGODB_URI - running without database');
+  if (!process.env.DATABASE_URL) {
+    console.log('⚠️ No DATABASE_URL - running without database');
     return;
   }
 
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ MongoDB connected');
+    // Test connection
+    const client = await pool.connect();
+    console.log('✅ PostgreSQL connected');
+    client.release();
+
+    // Initialize tables
+    await initDatabase();
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
+    console.error('❌ PostgreSQL connection error:', error.message);
   }
 };
 
