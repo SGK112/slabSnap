@@ -176,12 +176,13 @@ body {
 }
 
 .btn-primary {
-    background: var(--primary);
+    background: linear-gradient(135deg, #F5A623 0%, #E8930C 100%);
     color: var(--white);
+    font-weight: 700;
 }
 
 .btn-primary:hover {
-    background: var(--primary-dark);
+    background: linear-gradient(135deg, #E8930C 0%, #D4820A 100%);
     transform: translateY(-1px);
     box-shadow: var(--shadow);
 }
