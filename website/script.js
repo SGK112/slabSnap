@@ -156,6 +156,114 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add actual newsletter signup logic here
     };
 
+    // Generic Modal Functions
+    const openModal = (modal) => {
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    };
+
+    const closeAllModals = () => {
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.classList.remove('active');
+        });
+        document.body.style.overflow = '';
+    };
+
+    // Contact Modal
+    const contactModal = document.getElementById('contactModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    document.querySelectorAll('a[href="#contact"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal(contactModal);
+        });
+    });
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeAllModals);
+
+    // Privacy Modal
+    const privacyModal = document.getElementById('privacyModal');
+    const closePrivacyBtn = document.getElementById('closePrivacyModal');
+    document.querySelectorAll('a[href="#privacy"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal(privacyModal);
+        });
+    });
+    if (closePrivacyBtn) closePrivacyBtn.addEventListener('click', closeAllModals);
+
+    // Terms Modal
+    const termsModal = document.getElementById('termsModal');
+    const closeTermsBtn = document.getElementById('closeTermsModal');
+    document.querySelectorAll('a[href="#terms"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal(termsModal);
+        });
+    });
+    if (closeTermsBtn) closeTermsBtn.addEventListener('click', closeAllModals);
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeAllModals();
+            }
+        });
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAllModals();
+        }
+    });
+
+    // Contact form submission
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const subject = document.getElementById('subject').value;
+            const message = document.getElementById('message').value;
+
+            // Get subject text
+            const subjectSelect = document.getElementById('subject');
+            const subjectText = subjectSelect.options[subjectSelect.selectedIndex].text;
+
+            // Create mailto link - emails go to help.remodely@gmail.com but show info@remodely.ai
+            const mailtoSubject = encodeURIComponent(`[REMODELY.AI] ${subjectText} from ${name}`);
+            const mailtoBody = encodeURIComponent(
+                `Name: ${name}\n` +
+                `Email: ${email}\n` +
+                `Subject: ${subjectText}\n\n` +
+                `Message:\n${message}\n\n` +
+                `---\nSent from REMODELY.AI website contact form`
+            );
+
+            // Open mailto with the actual receiving email
+            window.location.href = `mailto:help.remodely@gmail.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+
+            // Show success message in modal
+            const modalContent = contactModal.querySelector('.modal');
+            modalContent.innerHTML = `
+                <button class="modal-close" onclick="location.reload()">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+                <div class="form-success show">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <h3>Opening Email Client</h3>
+                    <p>Your default email app should open shortly.<br>If not, email us at <a href="mailto:info@remodely.ai">info@remodely.ai</a></p>
+                    <button type="button" class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">Done</button>
+                </div>
+            `;
+        });
+    }
+
     // Parallax effect for hero background
     window.addEventListener('scroll', () => {
         const scrolled = window.pageYOffset;
