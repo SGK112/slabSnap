@@ -4,20 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="REMODELY.AI - Your Local Remodeling Marketplace. Find quality remnant stone slabs, save up to 70%, and make eco-friendly choices for your home renovation.">
-    <meta name="keywords" content="remodeling, countertops, granite, marble, quartz, flooring, cabinets, tile, home renovation">
+    <meta name="keywords" content="remodeling, countertops, granite, marble, quartz, flooring, cabinets, tile, home renovation, stone, plumbing, lighting">
     <title>REMODELY.AI - Your Local Remodeling Marketplace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="icon" type="image/png" href="logo.png">
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar">
         <div class="container nav-container">
             <a href="#" class="logo">
-                <span class="logo-icon">R</span>
+                <img src="logo.png" alt="REMODELY.AI Logo" class="logo-img">
                 <span class="logo-text">REMODELY<span class="logo-ai">.AI</span></span>
             </a>
             <div class="nav-links">
@@ -71,23 +71,101 @@
             </div>
             <div class="hero-image">
                 <div class="phone-mockup">
+                    <div class="phone-notch"></div>
                     <div class="phone-screen">
                         <div class="app-preview">
+                            <!-- App Header -->
                             <div class="app-header">
-                                <span class="app-logo">R</span>
-                                <span>REMODELY.AI</span>
+                                <div class="app-search-bar">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"/>
+                                        <path d="m21 21-4.35-4.35"/>
+                                    </svg>
+                                    <span>Search materials...</span>
+                                </div>
+                                <div class="app-map-btn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#0f172a">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                                        <circle cx="12" cy="10" r="3" fill="white"/>
+                                    </svg>
+                                    <span>Map</span>
+                                </div>
                             </div>
-                            <div class="app-search">
-                                <span>Search materials...</span>
+                            <!-- App Categories Grid -->
+                            <div class="app-categories-grid">
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon orange">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                                </div>
+                                    <span>For Sale</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon blue">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                                    </div>
+                                    <span>Vendors</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon green">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>
+                                    </div>
+                                    <span>Measure</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon purple">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
+                                    </div>
+                                    <span>Jobs</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon pink">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
+                                    </div>
+                                    <span>Stone</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon indigo">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+                                    </div>
+                                    <span>Cabinets</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon amber">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                                    </div>
+                                    <span>AI Chat</span>
+                                </div>
+                                <div class="app-cat-item">
+                                    <div class="app-cat-icon teal">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+                                    </div>
+                                    <span>Tile</span>
+                                </div>
                             </div>
-                            <div class="app-categories">
-                                <div class="app-category">Countertops</div>
-                                <div class="app-category">Flooring</div>
-                                <div class="app-category">Cabinets</div>
+                            <!-- App Filter Pills -->
+                            <div class="app-filter-row">
+                                <span class="app-filter active">All</span>
+                                <span class="app-filter">Stone</span>
+                                <span class="app-filter">Cabinets</span>
+                                <span class="app-filter">Wood</span>
                             </div>
-                            <div class="app-cards">
-                                <div class="app-card granite"></div>
-                                <div class="app-card marble"></div>
+                            <!-- App Listings -->
+                            <div class="app-listings-title">For sale</div>
+                            <div class="app-listings-grid">
+                                <div class="app-listing-card">
+                                    <div class="app-listing-img granite"></div>
+                                    <div class="app-listing-info">
+                                        <span class="app-listing-price">$85</span>
+                                        <span class="app-listing-name">Granite Remnant</span>
+                                    </div>
+                                </div>
+                                <div class="app-listing-card">
+                                    <div class="app-listing-img marble"></div>
+                                    <div class="app-listing-info">
+                                        <span class="app-listing-price">$120</span>
+                                        <span class="app-listing-name">Marble Piece</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -127,10 +205,9 @@
                 <div class="feature-card">
                     <div class="feature-icon eco">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-                            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                            <line x1="9" y1="9" x2="9.01" y2="9"/>
-                            <line x1="15" y1="9" x2="15.01" y2="9"/>
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
                         </svg>
                     </div>
                     <h3>Eco-Friendly Choice</h3>
@@ -139,13 +216,11 @@
                 <div class="feature-card">
                     <div class="feature-icon ai">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                            <path d="M2 17l10 5 10-5"/>
-                            <path d="M2 12l10 5 10-5"/>
+                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                         </svg>
                     </div>
-                    <h3>AI-Powered Search</h3>
-                    <p>Our intelligent search helps you find exactly what you need. Describe your project and let AI match you with perfect materials.</p>
+                    <h3>AI-Powered Assistant</h3>
+                    <p>Get instant help from our AI chat. Ask questions about materials, get recommendations, and plan your project with ease.</p>
                 </div>
             </div>
         </div>
@@ -158,37 +233,117 @@
                 <h2>Browse Categories</h2>
                 <p>Explore our wide selection of premium remodeling materials</p>
             </div>
-            <div class="categories-grid">
-                <a href="#" class="category-card countertops">
-                    <div class="category-overlay"></div>
-                    <div class="category-content">
-                        <h3>Countertops</h3>
-                        <p>Granite, Marble, Quartz & More</p>
-                        <span class="category-count">2,500+ listings</span>
+
+            <!-- Main Categories -->
+            <div class="main-categories">
+                <a href="#" class="main-category-card stone-cat">
+                    <div class="main-cat-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="white"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
+                    </div>
+                    <div class="main-cat-content">
+                        <h3>Stone & Countertops</h3>
+                        <p>Premium natural and engineered stone</p>
+                        <div class="sub-categories">
+                            <span>Granite</span>
+                            <span>Marble</span>
+                            <span>Quartz</span>
+                            <span>Quartzite</span>
+                        </div>
+                        <span class="cat-count">2,500+ listings</span>
                     </div>
                 </a>
-                <a href="#" class="category-card flooring">
-                    <div class="category-overlay"></div>
-                    <div class="category-content">
+
+                <a href="#" class="main-category-card cabinets-cat">
+                    <div class="main-cat-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="white"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+                    </div>
+                    <div class="main-cat-content">
+                        <h3>Cabinets & Storage</h3>
+                        <p>Kitchen and bathroom cabinetry</p>
+                        <div class="sub-categories">
+                            <span>Kitchen</span>
+                            <span>Bathroom</span>
+                            <span>Custom</span>
+                            <span>RTA</span>
+                        </div>
+                        <span class="cat-count">1,200+ listings</span>
+                    </div>
+                </a>
+
+                <a href="#" class="main-category-card flooring-cat">
+                    <div class="main-cat-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="white"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    </div>
+                    <div class="main-cat-content">
                         <h3>Flooring</h3>
-                        <p>Hardwood, Tile, Luxury Vinyl</p>
-                        <span class="category-count">1,800+ listings</span>
+                        <p>Hardwood, tile, and luxury vinyl</p>
+                        <div class="sub-categories">
+                            <span>Hardwood</span>
+                            <span>LVP</span>
+                            <span>Laminate</span>
+                            <span>Carpet</span>
+                        </div>
+                        <span class="cat-count">1,800+ listings</span>
                     </div>
                 </a>
-                <a href="#" class="category-card cabinets">
-                    <div class="category-overlay"></div>
-                    <div class="category-content">
-                        <h3>Cabinets</h3>
-                        <p>Kitchen & Bath Cabinetry</p>
-                        <span class="category-count">950+ listings</span>
+
+                <a href="#" class="main-category-card tile-cat">
+                    <div class="main-cat-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="white"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+                    </div>
+                    <div class="main-cat-content">
+                        <h3>Tile & Backsplash</h3>
+                        <p>Ceramic, porcelain, and natural stone</p>
+                        <div class="sub-categories">
+                            <span>Ceramic</span>
+                            <span>Porcelain</span>
+                            <span>Mosaic</span>
+                            <span>Natural</span>
+                        </div>
+                        <span class="cat-count">3,200+ listings</span>
                     </div>
                 </a>
-                <a href="#" class="category-card tile">
-                    <div class="category-overlay"></div>
-                    <div class="category-content">
-                        <h3>Tile</h3>
-                        <p>Backsplash, Floor & Wall Tile</p>
-                        <span class="category-count">3,200+ listings</span>
+            </div>
+
+            <!-- Secondary Categories -->
+            <div class="secondary-categories">
+                <a href="#" class="secondary-cat-card">
+                    <div class="sec-cat-icon wood-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17 12c0 2.76-2.24 5-5 5s-5-2.24-5-5H4c0 4.42 3.58 8 8 8s8-3.58 8-8h-3zm-5-9C8.58 3 5.24 5.51 4.25 9h15.5c-.99-3.49-4.33-6-7.75-6z"/></svg>
+                    </div>
+                    <div class="sec-cat-info">
+                        <h4>Wood & Lumber</h4>
+                        <span>850+ listings</span>
+                    </div>
+                </a>
+
+                <a href="#" class="secondary-cat-card">
+                    <div class="sec-cat-icon lighting-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>
+                    </div>
+                    <div class="sec-cat-info">
+                        <h4>Lighting</h4>
+                        <span>620+ listings</span>
+                    </div>
+                </a>
+
+                <a href="#" class="secondary-cat-card">
+                    <div class="sec-cat-icon plumbing-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z"/></svg>
+                    </div>
+                    <div class="sec-cat-info">
+                        <h4>Plumbing</h4>
+                        <span>480+ listings</span>
+                    </div>
+                </a>
+
+                <a href="#" class="secondary-cat-card">
+                    <div class="sec-cat-icon hardware-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+                    </div>
+                    <div class="sec-cat-info">
+                        <h4>Hardware</h4>
+                        <span>950+ listings</span>
                     </div>
                 </a>
             </div>
@@ -345,7 +500,7 @@
             <div class="footer-grid">
                 <div class="footer-brand">
                     <a href="#" class="logo">
-                        <span class="logo-icon">R</span>
+                        <img src="logo.png" alt="REMODELY.AI Logo" class="logo-img">
                         <span class="logo-text">REMODELY<span class="logo-ai">.AI</span></span>
                     </a>
                     <p>Your local remodeling marketplace. Find quality materials, save money, and make sustainable choices.</p>
