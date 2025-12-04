@@ -106,8 +106,12 @@ body {
 }
 
 .logo-ai {
-    color: var(--primary);
+    color: #F5A623;
     font-weight: 900;
+    background: linear-gradient(135deg, #F5A623 0%, #E8930C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .logo-tagline {
