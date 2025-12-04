@@ -39,7 +39,7 @@ export default function MessagesScreen() {
             Welcome to Inbox
           </Text>
           <Text style={styles.emptySubtitle}>
-            Sign in to access messages from SlabSnap, WhatsApp, and Telegram
+            Sign in to access messages from Remodely, WhatsApp, and Telegram
           </Text>
           <Pressable
             style={styles.primaryButton}

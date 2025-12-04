@@ -21,7 +21,7 @@ export default function MessagesScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { conversations, favoriteConversations, toggleFavorite, deleteConversation, loadSampleConversations } = useMessagingStore();
   const { user } = useAuthStore();
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>("all");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
@@ -46,7 +46,7 @@ export default function MessagesScreen() {
             Welcome to Inbox
           </Text>
           <Text style={styles.emptySubtitle}>
-            Sign in to access messages from SlabSnap, WhatsApp, and Telegram
+            Sign in to access messages from Remodely, WhatsApp, and Telegram
           </Text>
           <Pressable
             style={styles.primaryButton}
@@ -171,7 +171,7 @@ export default function MessagesScreen() {
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={colors.text.quaternary} />
+          <Ionicons name="search" size={24} color={colors.text.quaternary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search conversations..."
@@ -181,7 +181,7 @@ export default function MessagesScreen() {
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={18} color={colors.text.quaternary} />
+              <Ionicons name="close-circle" size={24} color={colors.text.quaternary} />
             </Pressable>
           )}
         </View>
@@ -197,10 +197,11 @@ export default function MessagesScreen() {
             style={[styles.filterTab, inboxFilter === "all" && styles.filterTabActive]}
             onPress={() => setInboxFilter("all")}
           >
+            <Ionicons name="chatbubbles" size={28} color={inboxFilter === "all" ? colors.primary[600] : colors.text.tertiary} />
             <Text style={[styles.filterTabText, inboxFilter === "all" && styles.filterTabTextActive]}>
               All
             </Text>
-            <View style={styles.filterBadge}>
+            <View style={[styles.filterBadge, inboxFilter === "all" && { backgroundColor: colors.primary[600] }]}>
               <Text style={styles.filterBadgeText}>{filteredConversations.length}</Text>
             </View>
           </Pressable>
@@ -209,12 +210,12 @@ export default function MessagesScreen() {
             style={[styles.filterTab, inboxFilter === "unread" && styles.filterTabActive]}
             onPress={() => setInboxFilter("unread")}
           >
-            <Ionicons name="mail-unread" size={16} color={inboxFilter === "unread" ? colors.primary[600] : colors.text.tertiary} />
+            <Ionicons name="mail-unread" size={28} color={inboxFilter === "unread" ? colors.primary[600] : colors.text.tertiary} />
             <Text style={[styles.filterTabText, inboxFilter === "unread" && styles.filterTabTextActive]}>
               Unread
             </Text>
             {unreadCount > 0 && (
-              <View style={styles.filterBadge}>
+              <View style={[styles.filterBadge, inboxFilter === "unread" && { backgroundColor: colors.primary[600] }]}>
                 <Text style={styles.filterBadgeText}>{unreadCount}</Text>
               </View>
             )}
@@ -224,7 +225,7 @@ export default function MessagesScreen() {
             style={[styles.filterTab, inboxFilter === "pinned" && styles.filterTabActive]}
             onPress={() => setInboxFilter("pinned")}
           >
-            <Ionicons name="pin" size={16} color={inboxFilter === "pinned" ? colors.primary[600] : colors.text.tertiary} />
+            <Ionicons name="pin" size={28} color={inboxFilter === "pinned" ? colors.primary[600] : colors.text.tertiary} />
             <Text style={[styles.filterTabText, inboxFilter === "pinned" && styles.filterTabTextActive]}>
               Pinned
             </Text>
@@ -237,12 +238,12 @@ export default function MessagesScreen() {
 
           {/* Platform Filters */}
           <View style={styles.filterDivider} />
-          
+
           <Pressable
             style={[styles.filterTab, platformFilter === "whatsapp" && styles.filterTabActive]}
             onPress={() => setPlatformFilter(platformFilter === "whatsapp" ? "all" : "whatsapp")}
           >
-            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+            <Ionicons name="logo-whatsapp" size={28} color="#25D366" />
             <Text style={[styles.filterTabText, platformFilter === "whatsapp" && styles.filterTabTextActive]}>
               WhatsApp
             </Text>
@@ -252,7 +253,7 @@ export default function MessagesScreen() {
             style={[styles.filterTab, platformFilter === "telegram" && styles.filterTabActive]}
             onPress={() => setPlatformFilter(platformFilter === "telegram" ? "all" : "telegram")}
           >
-            <Ionicons name="paper-plane" size={16} color="#0088cc" />
+            <Ionicons name="paper-plane" size={28} color="#0088cc" />
             <Text style={[styles.filterTabText, platformFilter === "telegram" && styles.filterTabTextActive]}>
               Telegram
             </Text>
@@ -430,37 +431,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.background.secondary,
     marginHorizontal: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 12,
     marginBottom: 12,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 17,
     color: colors.text.primary,
   },
   filterTabs: {
     paddingHorizontal: 16,
+    marginBottom: 8,
   },
   filterTabsContent: {
-    gap: 8,
+    gap: 10,
   },
   filterTab: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
     backgroundColor: colors.background.secondary,
   },
   filterTabActive: {
     backgroundColor: colors.primary[100],
+    borderWidth: 1,
+    borderColor: colors.primary[400],
   },
   filterTabText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "500",
     color: colors.text.tertiary,
   },
@@ -470,22 +474,23 @@ const styles = StyleSheet.create({
   },
   filterBadge: {
     backgroundColor: colors.text.quaternary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    minWidth: 24,
     alignItems: "center",
   },
   filterBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "white",
   },
   filterDivider: {
     width: 1,
-    height: 16,
+    height: 40,
     backgroundColor: colors.border.main,
-    marginHorizontal: 4,
+    marginHorizontal: 8,
+    alignSelf: "center",
   },
   scrollView: {
     flex: 1,

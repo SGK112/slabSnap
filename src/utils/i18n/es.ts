@@ -25,10 +25,10 @@ export const es = {
 
   // Landing Screen
   landing: {
-    appName: 'SlabSnap',
-    tagline: 'Desarrollado por Surprise Granite',
-    whatAreRemnants: '¿Qué son los remanentes?',
-    explore: 'Explorar',
+    appName: 'REMODELY.AI',
+    tagline: 'Tu Mercado Local de Remodelación',
+    whatAreRemnants: 'Más Información',
+    explore: 'Comenzar',
     login: 'Iniciar sesión',
     signup: 'Registrarse',
   },
@@ -56,7 +56,7 @@ export const es = {
 
   // Home Screen
   home: {
-    appName: 'cutStone',
+    appName: 'REMODELY.AI',
     dayStreak: 'días seguidos',
     searchPlaceholder: 'Buscar restos de piedra...',
     all: 'Todos',
@@ -119,8 +119,8 @@ export const es = {
 
   // About Remnants
   about: {
-    title: '¿Qué es cutStone?',
-    subtitle: 'El mercado sustentable de remanentes de piedra',
+    title: '¿Qué es REMODELY.AI?',
+    subtitle: 'Tu Mercado Local de Remodelación',
     perfectPieces: 'Piezas perfectas, perfectamente dimensionadas',
     theProblem: 'El Problema',
     problemText1: 'Los fabricantes y contratistas de piedra tienen miles de remanentes — piezas sobrantes de proyectos grandes — almacenadas en bodegas por todo el país.',

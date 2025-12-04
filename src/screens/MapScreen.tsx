@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import MapView, { Marker, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../utils/colors";
 import { useVendorStore } from "../state/vendorStore";
@@ -40,6 +40,20 @@ const VENDOR_TYPE_ICONS: Record<VendorType, keyof typeof Ionicons.glyphMap> = {
   "stone-supplier": "business",
   installer: "construct",
   designer: "color-palette",
+  "cabinet-maker": "albums",
+  "wood-supplier": "leaf",
+  "lighting-store": "bulb",
+  "metal-fabricator": "hardware-chip",
+  "glass-supplier": "square-outline",
+  "landscaping-supply": "flower",
+  "plumbing-supply": "water",
+  "appliance-store": "tv",
+  "paint-store": "color-fill",
+  "flooring-store": "layers",
+  "hardware-store": "build",
+  "window-door-supplier": "browsers",
+  "general-contractor": "briefcase",
+  architect: "easel",
 };
 
 const VENDOR_TYPE_COLORS: Record<VendorType, string> = {
@@ -50,6 +64,20 @@ const VENDOR_TYPE_COLORS: Record<VendorType, string> = {
   "stone-supplier": "#8b5cf6",
   installer: "#ec4899",
   designer: "#14b8a6",
+  "cabinet-maker": "#6366f1",
+  "wood-supplier": "#84cc16",
+  "lighting-store": "#eab308",
+  "metal-fabricator": "#64748b",
+  "glass-supplier": "#06b6d4",
+  "landscaping-supply": "#22c55e",
+  "plumbing-supply": "#0ea5e9",
+  "appliance-store": "#a855f7",
+  "paint-store": "#f43f5e",
+  "flooring-store": "#d97706",
+  "hardware-store": "#78716c",
+  "window-door-supplier": "#0891b2",
+  "general-contractor": "#7c3aed",
+  architect: "#2563eb",
 };
 
 const VENDOR_TYPE_LABELS: Record<VendorType, string> = {
@@ -60,6 +88,20 @@ const VENDOR_TYPE_LABELS: Record<VendorType, string> = {
   "stone-supplier": "Stone Supplier",
   installer: "Installer",
   designer: "Designer",
+  "cabinet-maker": "Cabinet Maker",
+  "wood-supplier": "Wood Supplier",
+  "lighting-store": "Lighting Store",
+  "metal-fabricator": "Metal Fabricator",
+  "glass-supplier": "Glass Supplier",
+  "landscaping-supply": "Landscaping Supply",
+  "plumbing-supply": "Plumbing Supply",
+  "appliance-store": "Appliance Store",
+  "paint-store": "Paint Store",
+  "flooring-store": "Flooring Store",
+  "hardware-store": "Hardware Store",
+  "window-door-supplier": "Window & Door",
+  "general-contractor": "General Contractor",
+  architect: "Architect",
 };
 
 // Keyword mapping for intelligent search
@@ -469,11 +511,12 @@ export default function MapScreen() {
       if (status !== "granted") return;
 
       const location = await Location.getCurrentPositionAsync({});
+      // 5 mile radius = ~0.072 degrees latitude, so delta of 0.15 covers ~10 miles
       const region: Region = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        latitudeDelta: 0.3,
-        longitudeDelta: 0.3,
+        latitudeDelta: 0.15,
+        longitudeDelta: 0.15,
       };
       setUserLocation(region);
       
@@ -509,8 +552,8 @@ export default function MapScreen() {
       listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.stoneType.toLowerCase().includes(searchQuery.toLowerCase());
-    
+      (listing.stoneType?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+
     return matchesSearch;
   });
 
@@ -524,7 +567,7 @@ export default function MapScreen() {
         return l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           l.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
           l.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          l.stoneType.toLowerCase().includes(searchQuery.toLowerCase());
+          (l.stoneType?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
       });
       const hasJobMatches = jobsToUse.some(j => {
         if (!j.coordinates || j.status !== "open") return false;
@@ -1090,12 +1133,11 @@ export default function MapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
         initialRegion={{
           latitude: 33.6369,
           longitude: -112.3652,
-          latitudeDelta: 2.5,
-          longitudeDelta: 2.5,
+          latitudeDelta: 0.15,  // ~5 mile radius view
+          longitudeDelta: 0.15,
         }}
         showsUserLocation
         showsMyLocationButton={false}

@@ -4,6 +4,8 @@ This is a custom audio transcription service that uses a custom API endpoint mai
 You can use this function to transcribe audio files, and it will return the text of the audio file.
 */
 
+import { AI_CONFIG } from "../config/env";
+
 /**
  * Transcribe an audio file
  * @param localAudioUri - The local URI of the audio file to transcribe. Obtained via the expo-av library.
@@ -21,10 +23,10 @@ export const transcribeAudio = async (localAudioUri: string) => {
     formData.append("model", "gpt-4o-transcribe");
     formData.append("language", "en");
 
-    const OPENAI_API_KEY = process.env.EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY;
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not set");
+    if (!AI_CONFIG.openai.isConfigured) {
+      throw new Error("OpenAI API key not configured - transcription unavailable");
     }
+    const OPENAI_API_KEY = AI_CONFIG.openai.apiKey;
 
     // API call to OpenAI's gpt-4o-transcribe
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {

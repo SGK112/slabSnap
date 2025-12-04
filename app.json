@@ -1,19 +1,60 @@
 {
   "expo": {
-    "name": "SlabSnap",
-    "slug": "slabsnap",
-    "scheme": "slabsnap",
+    "name": "REMODELY.AI",
+    "slug": "remodely",
+    "scheme": "remodely",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#2563eb"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.surprisegranite.slabsnap"
+      "bundleIdentifier": "com.surprisegranite.remodely",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Remodely needs camera access to photograph remodeling materials",
+        "NSLocationWhenInUseUsageDescription": "Remodely uses location to show nearby vendors and listings",
+        "NSPhotoLibraryUsageDescription": "Remodely needs photo library access to select images for listings",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
+      },
       "edgeToEdgeEnabled": true,
-      "package": "com.surprisegranite.slabsnap"
-    }
+      "package": "com.surprisegranite.remodely",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-location",
+      "expo-image-picker",
+      [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": "AIzaSyCi_IzEpOoXKyljdDU4bRZFmdil_vZpAGI"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4eadd3eb-6ec3-4ce6-8235-9ebf9829eab2"
+      }
+    },
+    "owner": "sgk112"
   }
 }

@@ -25,7 +25,7 @@ export default function AboutRemnantsScreen() {
           </Pressable>
 
           <Text style={styles.mainTitle}>
-            What is SlabSnap?
+            What is Remodely?
           </Text>
           
           <Text style={styles.subtitle}>
@@ -79,7 +79,7 @@ export default function AboutRemnantsScreen() {
           </View>
 
           <Text style={styles.highlightText}>
-            SlabSnap connects you with remnant stone pieces in your area.
+            Remodely connects you with remodeling materials in your area.
           </Text>
 
           <Text style={styles.bodyText}>
@@ -207,7 +207,7 @@ export default function AboutRemnantsScreen() {
                 </Text>
               </View>
               <Text style={styles.measureToolDescription}>
-                SlabSnap has a built-in AR measurement tool perfect for measuring your space!
+                Remodely has a built-in AR measurement tool perfect for measuring your space!
               </Text>
               <Pressable
                 onPress={openSmartMeasurement}
@@ -227,7 +227,7 @@ export default function AboutRemnantsScreen() {
           <View style={styles.stepsList}>
             {[
               { num: "1", text: "Measure your space (length, width, thickness needed)" },
-              { num: "2", text: "Open SlabSnap and use dimension filters" },
+              { num: "2", text: "Open Remodely and use dimension filters" },
               { num: "3", text: "Browse remnants that fit your requirements" },
               { num: "4", text: "Contact seller and arrange pickup or delivery" },
               { num: "5", text: "Save money and help reduce stone waste!" },

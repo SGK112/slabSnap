@@ -3,7 +3,7 @@ import { View, Text, Pressable, TextInput, Modal, ActivityIndicator, ScrollView 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../utils/colors";
-import { getOpenAIChatResponse } from "../api/chat-service";
+import { proxyChat } from "../api/backend-proxy";
 import * as Haptics from "expo-haptics";
 
 interface AIWriterButtonProps {
@@ -80,12 +80,20 @@ export function AIWriterButton({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      const fullPrompt = `${getSystemPrompt()}\n\nUser request: ${prompt}`;
-      const response = await getOpenAIChatResponse(fullPrompt);
-      
-      setGenerated(response.content.trim());
+      // Use backend proxy for AI generation
+      const response = await proxyChat([
+        { role: "system", content: getSystemPrompt() },
+        { role: "user", content: prompt }
+      ], {
+        model: "openai",
+        temperature: 0.7,
+        maxTokens: 1000
+      });
+
+      setGenerated(response.message.trim());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
+      console.error("AI Writer error:", err);
       setError("Failed to generate content. Please try again.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {

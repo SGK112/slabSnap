@@ -25,10 +25,10 @@ export const en = {
 
   // Landing Screen
   landing: {
-    appName: 'SlabSnap',
-    tagline: 'Powered by Surprise Granite',
-    whatAreRemnants: 'What are remnants?',
-    explore: 'Explore',
+    appName: 'REMODELY.AI',
+    tagline: 'Your Local Remodeling Marketplace',
+    whatAreRemnants: 'Learn More',
+    explore: 'Get Started',
     login: 'Log in',
     signup: 'Sign up',
   },
@@ -56,7 +56,7 @@ export const en = {
 
   // Home Screen
   home: {
-    appName: 'cutStone',
+    appName: 'REMODELY.AI',
     dayStreak: 'day streak',
     searchPlaceholder: 'Search stone remnants...',
     all: 'All',
@@ -119,8 +119,8 @@ export const en = {
 
   // About Remnants
   about: {
-    title: 'What is cutStone?',
-    subtitle: 'The sustainable marketplace for stone remnants',
+    title: 'What is REMODELY.AI?',
+    subtitle: 'Your Local Remodeling Marketplace',
     perfectPieces: 'Perfect pieces, perfectly sized',
     theProblem: 'The Problem',
     problemText1: 'Stone fabricators and contractors have thousands of remnants — leftover pieces from larger projects — sitting in warehouses across the country.',

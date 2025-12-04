@@ -6,6 +6,8 @@ This endpoint uses openai's latest image generation API, AKA gpt4o, AKA gpt-imag
 Does not support video and audio generation.
 */
 
+import { VIBECODE_CONFIG } from "../config/env";
+
 // API endpoint configuration
 const baseUrl = "https://api.vibecodeapp.com";
 const endpoint = "/api/storage/generate-image";
@@ -26,9 +28,13 @@ export async function generateImage(
   }
 ): Promise<string> {
   try {
+    if (!VIBECODE_CONFIG.isConfigured) {
+      throw new Error("Vibecode project ID not configured - image generation unavailable");
+    }
+
     // Create request body
     const requestBody = {
-      projectId: process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID,
+      projectId: VIBECODE_CONFIG.projectId,
       prompt,
       options: {
         ...options,

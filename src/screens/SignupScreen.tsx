@@ -16,6 +16,7 @@ import { useAuthStore } from "../state/authStore";
 import { UserType } from "../types/marketplace";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { colors } from "../utils/colors";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Signup">;
 
@@ -23,7 +24,7 @@ const ACCOUNT_TYPES: Array<{ type: UserType; title: string; description: string;
   {
     type: "homeowner",
     title: "Homeowner",
-    description: "I'm looking for stone for my home project",
+    description: "I'm looking for materials for my home project",
     icon: "home",
   },
   {
@@ -35,7 +36,7 @@ const ACCOUNT_TYPES: Array<{ type: UserType; title: string; description: string;
   {
     type: "vendor",
     title: "Vendor/Supplier",
-    description: "I supply stone materials",
+    description: "I supply remodeling materials",
     icon: "business",
   },
   {
@@ -92,7 +93,7 @@ export default function SignupScreen() {
 
     try {
       await signup(email, password, name);
-      
+
       // Update user with account type and business info
       updateUser({
         userType: accountType,
@@ -100,7 +101,7 @@ export default function SignupScreen() {
         businessType: accountType !== "homeowner" ? ACCOUNT_TYPES.find(t => t.type === accountType)?.title : undefined,
         adCredits: accountType !== "homeowner" ? 50 : 0, // Give pros 50 free ad credits
       });
-      
+
       // Navigate to main app after successful signup
       navigation.replace("MainTabs");
     } catch (err) {
@@ -111,54 +112,70 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
-        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-          <View className="flex-1 px-6 pt-20">
-            <View className="mb-12">
-              <Text className="text-4xl mb-2" style={{ fontWeight: '300', color: '#0f172a', letterSpacing: -1 }}>
-                cutStone
+        <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+          <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 60 }}>
+            <View style={{ marginBottom: 40 }}>
+              <Text style={{ fontSize: 36, fontWeight: '700', color: colors.primary[600], letterSpacing: -1, marginBottom: 4 }}>
+                REMODELY.AI
               </Text>
-              <Text className="text-base" style={{ color: '#64748b' }}>
-                Create an account
+              <Text style={{ fontSize: 16, color: colors.text.tertiary }}>
+                Create your account
               </Text>
             </View>
 
             {error ? (
-              <View className="rounded-lg p-4 mb-6" style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' }}>
-                <Text className="text-sm" style={{ color: '#991b1b' }}>{error}</Text>
+              <View style={{ borderRadius: 12, padding: 16, marginBottom: 24, backgroundColor: colors.error.light, borderWidth: 1, borderColor: '#fecaca' }}>
+                <Text style={{ fontSize: 14, color: colors.error.dark }}>{error}</Text>
               </View>
             ) : null}
 
             {step === 1 ? (
               <>
-                <View className="mb-5">
-                  <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                <View style={{ marginBottom: 20 }}>
+                  <Text style={{ fontSize: 14, marginBottom: 8, color: colors.text.tertiary, fontWeight: '500' }}>
                     Full Name
                   </Text>
                   <TextInput
-                    className="rounded-lg px-4 py-3 text-sm"
-                    style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                    style={{
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      fontSize: 16,
+                      backgroundColor: colors.background.tertiary,
+                      borderWidth: 1,
+                      borderColor: colors.border.main,
+                      color: colors.text.primary
+                    }}
                     placeholder="John Doe"
-                    placeholderTextColor="#cbd5e1"
+                    placeholderTextColor={colors.neutral[400]}
                     value={name}
                     onChangeText={setName}
                     autoCapitalize="words"
                   />
                 </View>
 
-                <View className="mb-5">
-                  <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                <View style={{ marginBottom: 20 }}>
+                  <Text style={{ fontSize: 14, marginBottom: 8, color: colors.text.tertiary, fontWeight: '500' }}>
                     Email
                   </Text>
                   <TextInput
-                    className="rounded-lg px-4 py-3 text-sm"
-                    style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                    style={{
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      fontSize: 16,
+                      backgroundColor: colors.background.tertiary,
+                      borderWidth: 1,
+                      borderColor: colors.border.main,
+                      color: colors.text.primary
+                    }}
                     placeholder="your@email.com"
-                    placeholderTextColor="#cbd5e1"
+                    placeholderTextColor={colors.neutral[400]}
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -167,15 +184,23 @@ export default function SignupScreen() {
                   />
                 </View>
 
-                <View className="mb-8">
-                  <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                <View style={{ marginBottom: 32 }}>
+                  <Text style={{ fontSize: 14, marginBottom: 8, color: colors.text.tertiary, fontWeight: '500' }}>
                     Password
                   </Text>
                   <TextInput
-                    className="rounded-lg px-4 py-3 text-sm"
-                    style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                    style={{
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      fontSize: 16,
+                      backgroundColor: colors.background.tertiary,
+                      borderWidth: 1,
+                      borderColor: colors.border.main,
+                      color: colors.text.primary
+                    }}
                     placeholder="••••••••"
-                    placeholderTextColor="#cbd5e1"
+                    placeholderTextColor={colors.neutral[400]}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
@@ -184,11 +209,16 @@ export default function SignupScreen() {
                 </View>
 
                 <Pressable
-                  className="rounded-lg py-3 items-center mb-6"
-                  style={{ backgroundColor: '#0f172a' }}
+                  style={{
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: 'center',
+                    marginBottom: 24,
+                    backgroundColor: colors.primary[600]
+                  }}
                   onPress={handleContinue}
                 >
-                  <Text className="text-sm" style={{ fontWeight: '400', color: 'white' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: 'white' }}>
                     Continue
                   </Text>
                 </Pressable>
@@ -196,32 +226,36 @@ export default function SignupScreen() {
             ) : (
               <>
                 <Pressable
-                  className="mb-6 flex-row items-center"
+                  style={{ marginBottom: 24, flexDirection: 'row', alignItems: 'center' }}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setStep(1);
                   }}
                 >
-                  <Ionicons name="arrow-back" size={20} color="#64748b" />
-                  <Text className="text-sm ml-2" style={{ color: '#64748b' }}>Back</Text>
+                  <Ionicons name="arrow-back" size={20} color={colors.text.tertiary} />
+                  <Text style={{ fontSize: 14, marginLeft: 8, color: colors.text.tertiary }}>Back</Text>
                 </Pressable>
 
-                <Text className="text-xl mb-2" style={{ fontWeight: '500', color: '#0f172a' }}>
+                <Text style={{ fontSize: 20, marginBottom: 8, fontWeight: '600', color: colors.text.primary }}>
                   Choose Account Type
                 </Text>
-                <Text className="text-sm mb-6" style={{ color: '#64748b' }}>
+                <Text style={{ fontSize: 14, marginBottom: 24, color: colors.text.tertiary }}>
                   Select the option that best describes you
                 </Text>
 
-                <View className="mb-6">
+                <View style={{ marginBottom: 24 }}>
                   {ACCOUNT_TYPES.map((type) => (
                     <Pressable
                       key={type.type}
-                      className="rounded-xl p-4 mb-3 flex-row items-center"
                       style={{
-                        backgroundColor: accountType === type.type ? '#f0f9ff' : '#f8fafc',
-                        borderWidth: 1.5,
-                        borderColor: accountType === type.type ? '#0ea5e9' : '#f1f5f9',
+                        borderRadius: 16,
+                        padding: 16,
+                        marginBottom: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: accountType === type.type ? colors.primary[50] : colors.background.tertiary,
+                        borderWidth: 2,
+                        borderColor: accountType === type.type ? colors.primary[500] : colors.border.main,
                       }}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -230,63 +264,80 @@ export default function SignupScreen() {
                       }}
                     >
                       <View
-                        className="rounded-full items-center justify-center mr-4"
                         style={{
                           width: 48,
                           height: 48,
-                          backgroundColor: accountType === type.type ? '#0ea5e9' : '#e2e8f0',
+                          borderRadius: 24,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 16,
+                          backgroundColor: accountType === type.type ? colors.primary[500] : colors.neutral[200],
                         }}
                       >
                         <Ionicons
                           name={type.icon as any}
                           size={24}
-                          color={accountType === type.type ? 'white' : '#64748b'}
+                          color={accountType === type.type ? 'white' : colors.text.tertiary}
                         />
                       </View>
-                      <View className="flex-1">
-                        <Text className="text-base mb-1" style={{ fontWeight: '500', color: '#0f172a' }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, marginBottom: 4, fontWeight: '500', color: colors.text.primary }}>
                           {type.title}
                         </Text>
-                        <Text className="text-xs" style={{ color: '#64748b' }}>
+                        <Text style={{ fontSize: 12, color: colors.text.tertiary }}>
                           {type.description}
                         </Text>
                       </View>
                       {accountType === type.type && (
-                        <Ionicons name="checkmark-circle" size={24} color="#0ea5e9" />
+                        <Ionicons name="checkmark-circle" size={24} color={colors.primary[500]} />
                       )}
                     </Pressable>
                   ))}
                 </View>
 
                 {accountType !== "homeowner" && (
-                  <View className="mb-6">
-                    <Text className="text-xs mb-2" style={{ color: '#94a3b8' }}>
+                  <View style={{ marginBottom: 24 }}>
+                    <Text style={{ fontSize: 14, marginBottom: 8, color: colors.text.tertiary, fontWeight: '500' }}>
                       Business Name
                     </Text>
                     <TextInput
-                      className="rounded-lg px-4 py-3 text-sm"
-                      style={{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9', color: '#0f172a' }}
+                      style={{
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
+                        fontSize: 16,
+                        backgroundColor: colors.background.tertiary,
+                        borderWidth: 1,
+                        borderColor: colors.border.main,
+                        color: colors.text.primary
+                      }}
                       placeholder="Your Business Name"
-                      placeholderTextColor="#cbd5e1"
+                      placeholderTextColor={colors.neutral[400]}
                       value={businessName}
                       onChangeText={setBusinessName}
                       autoCapitalize="words"
                     />
-                    <View className="mt-3 rounded-lg p-3" style={{ backgroundColor: '#f0f9ff' }}>
-                      <Text className="text-xs" style={{ color: '#0369a1' }}>
-                        🎁 Welcome bonus: Get 50 free ad credits to promote your business!
+                    <View style={{ marginTop: 12, borderRadius: 12, padding: 12, backgroundColor: colors.primary[50] }}>
+                      <Text style={{ fontSize: 13, color: colors.primary[700] }}>
+                        Welcome bonus: Get 50 free ad credits to promote your business!
                       </Text>
                     </View>
                   </View>
                 )}
 
                 <Pressable
-                  className="rounded-lg py-3 items-center mb-6"
-                  style={{ backgroundColor: '#0f172a' }}
+                  style={{
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: 'center',
+                    marginBottom: 24,
+                    backgroundColor: colors.primary[600],
+                    opacity: loading ? 0.7 : 1
+                  }}
                   onPress={handleSignup}
                   disabled={loading}
                 >
-                  <Text className="text-sm" style={{ fontWeight: '400', color: 'white' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: 'white' }}>
                     {loading ? "Creating Account..." : "Create Account"}
                   </Text>
                 </Pressable>
@@ -294,12 +345,12 @@ export default function SignupScreen() {
             )}
 
             <Pressable
-              className="items-center"
+              style={{ alignItems: 'center', paddingBottom: 40 }}
               onPress={() => navigation.navigate("Login")}
             >
-              <Text className="text-sm" style={{ color: '#64748b' }}>
+              <Text style={{ fontSize: 15, color: colors.text.tertiary }}>
                 {"Already have an account? "}
-                <Text style={{ color: '#0f172a', fontWeight: '400' }}>Sign In</Text>
+                <Text style={{ color: colors.primary[600], fontWeight: '500' }}>Sign In</Text>
               </Text>
             </Pressable>
           </View>

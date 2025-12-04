@@ -46,37 +46,45 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
-        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-          <View className="flex-1 px-6 pt-20">
-            <View className="mb-12">
-              <Text className="text-4xl mb-2" style={{ fontWeight: '300', color: colors.primary[700], letterSpacing: -1 }}>
-                cutStone
+        <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+          <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 80 }}>
+            <View style={{ marginBottom: 48 }}>
+              <Text style={{ fontSize: 36, fontWeight: '700', color: colors.primary[600], letterSpacing: -1, marginBottom: 4 }}>
+                REMODELY.AI
               </Text>
-              <Text className="text-base" style={{ color: colors.text.tertiary }}>
+              <Text style={{ fontSize: 16, color: colors.text.tertiary }}>
                 Sign in to continue
               </Text>
             </View>
 
             {error ? (
-              <View className="rounded-lg p-4 mb-6" style={{ backgroundColor: colors.error.light, borderWidth: 1, borderColor: '#fecaca' }}>
-                <Text className="text-sm" style={{ color: colors.error.dark }}>{error}</Text>
+              <View style={{ borderRadius: 12, padding: 16, marginBottom: 24, backgroundColor: colors.error.light, borderWidth: 1, borderColor: '#fecaca' }}>
+                <Text style={{ fontSize: 14, color: colors.error.dark }}>{error}</Text>
               </View>
             ) : null}
 
-            <View className="mb-5">
-              <Text className="text-sm mb-2" style={{ color: colors.text.tertiary, fontWeight: '500' }}>
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 14, marginBottom: 8, color: colors.text.tertiary, fontWeight: '500' }}>
                 Email
               </Text>
               <TextInput
-                className="rounded-xl px-5 py-4 text-base"
-                style={{ backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.main, color: colors.text.primary }}
+                style={{
+                  borderRadius: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 16,
+                  fontSize: 16,
+                  backgroundColor: colors.background.tertiary,
+                  borderWidth: 1,
+                  borderColor: colors.border.main,
+                  color: colors.text.primary
+                }}
                 placeholder="your@email.com"
-                placeholderTextColor={colors.neutral[300]}
+                placeholderTextColor={colors.neutral[400]}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -85,15 +93,23 @@ export default function LoginScreen() {
               />
             </View>
 
-            <View className="mb-8">
-              <Text className="text-sm mb-2" style={{ color: colors.text.tertiary, fontWeight: '500' }}>
+            <View style={{ marginBottom: 32 }}>
+              <Text style={{ fontSize: 14, marginBottom: 8, color: colors.text.tertiary, fontWeight: '500' }}>
                 Password
               </Text>
               <TextInput
-                className="rounded-xl px-5 py-4 text-base"
-                style={{ backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.main, color: colors.text.primary }}
+                style={{
+                  borderRadius: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 16,
+                  fontSize: 16,
+                  backgroundColor: colors.background.tertiary,
+                  borderWidth: 1,
+                  borderColor: colors.border.main,
+                  color: colors.text.primary
+                }}
                 placeholder="••••••••"
-                placeholderTextColor={colors.neutral[300]}
+                placeholderTextColor={colors.neutral[400]}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -102,23 +118,29 @@ export default function LoginScreen() {
             </View>
 
             <Pressable
-              className="rounded-xl py-4 items-center mb-6"
-              style={{ backgroundColor: colors.primary[600] }}
+              style={{
+                borderRadius: 12,
+                paddingVertical: 16,
+                alignItems: 'center',
+                marginBottom: 24,
+                backgroundColor: colors.primary[600],
+                opacity: loading ? 0.7 : 1
+              }}
               onPress={handleLogin}
               disabled={loading}
             >
-              <Text className="text-base" style={{ fontWeight: '500', color: 'white' }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: 'white' }}>
                 {loading ? "Signing in..." : "Sign In"}
               </Text>
             </Pressable>
 
             <Pressable
-              className="items-center"
+              style={{ alignItems: 'center' }}
               onPress={() => navigation.navigate("Signup")}
             >
-              <Text className="text-base" style={{ color: colors.text.tertiary }}>
+              <Text style={{ fontSize: 15, color: colors.text.tertiary }}>
                 {"Don't have an account? "}
-                <Text style={{ color: colors.primary[600], fontWeight: '400' }}>Sign Up</Text>
+                <Text style={{ color: colors.primary[600], fontWeight: '500' }}>Sign Up</Text>
               </Text>
             </Pressable>
           </View>

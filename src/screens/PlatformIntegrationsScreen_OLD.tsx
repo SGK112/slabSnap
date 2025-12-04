@@ -64,7 +64,7 @@ export default function PlatformIntegrationsScreen() {
     
     Alert.alert(
       "WhatsApp Connected!",
-      "Your WhatsApp messages will now sync to SlabSnap Inbox. You will receive a verification code via WhatsApp shortly.",
+      "Your WhatsApp messages will now sync to FlipStock Inbox. You will receive a verification code via WhatsApp shortly.",
       [{ text: "OK" }]
     );
   };
@@ -94,7 +94,7 @@ export default function PlatformIntegrationsScreen() {
     
     Alert.alert(
       "Telegram Connected!",
-      "Your Telegram messages will now sync to SlabSnap Inbox. Please check Telegram for a bot verification message.",
+      "Your Telegram messages will now sync to FlipStock Inbox. Please check Telegram for a bot verification message.",
       [{ text: "OK" }]
     );
   };

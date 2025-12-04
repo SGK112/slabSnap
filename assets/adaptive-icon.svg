@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background for adaptive icon foreground -->
+  <rect width="1024" height="1024" fill="#0D9488"/>
+
+  <!-- Remodely Logo: House with location pin (white on teal) -->
+
+  <!-- House shape -->
+  <g fill="#ffffff">
+    <!-- Roof -->
+    <path d="M 512 160 L 200 420 L 260 420 L 260 380 L 512 180 L 764 380 L 764 420 L 824 420 Z"/>
+
+    <!-- House body -->
+    <rect x="280" y="420" width="464" height="400" rx="15"/>
+  </g>
+
+  <!-- Door cutout (teal) -->
+  <rect x="432" y="550" width="160" height="270" rx="10" fill="#0D9488"/>
+
+  <!-- Window left (teal) -->
+  <rect x="320" y="480" width="90" height="90" rx="8" fill="#0D9488"/>
+
+  <!-- Window right (teal) -->
+  <rect x="614" y="480" width="90" height="90" rx="8" fill="#0D9488"/>
+
+  <!-- Location pin inside door -->
+  <g transform="translate(512, 660)">
+    <path d="M 0 -60 C -30 -60 -50 -40 -50 -15 C -50 20 0 60 0 60 C 0 60 50 20 50 -15 C 50 -40 30 -60 0 -60 Z"
+          fill="#ffffff" stroke="none"/>
+    <circle cx="0" cy="-20" r="18" fill="#0D9488"/>
+  </g>
+</svg>

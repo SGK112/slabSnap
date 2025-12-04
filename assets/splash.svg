@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1284 1284" width="1284" height="1284">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D9488"/>
+      <stop offset="100%" style="stop-color:#115E59"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1284" height="1284" fill="url(#bg)"/>
+
+  <!-- Centered Logo -->
+  <g transform="translate(392, 392)">
+    <!-- House shape -->
+    <g fill="#ffffff">
+      <!-- Roof -->
+      <path d="M 250 80 L 50 220 L 90 220 L 90 195 L 250 90 L 410 195 L 410 220 L 450 220 Z"/>
+
+      <!-- House body -->
+      <rect x="70" y="220" width="360" height="280" rx="12"/>
+    </g>
+
+    <!-- Door cutout (teal) -->
+    <rect x="180" y="310" width="140" height="190" rx="8" fill="#0D9488"/>
+
+    <!-- Window left (teal) -->
+    <rect x="100" y="260" width="60" height="60" rx="6" fill="#0D9488"/>
+
+    <!-- Window right (teal) -->
+    <rect x="340" y="260" width="60" height="60" rx="6" fill="#0D9488"/>
+
+    <!-- Location pin inside door -->
+    <g transform="translate(250, 390)">
+      <path d="M 0 -45 C -22 -45 -38 -30 -38 -10 C -38 15 0 45 0 45 C 0 45 38 15 38 -10 C 38 -30 22 -45 0 -45 Z"
+            fill="#ffffff" stroke="none"/>
+      <circle cx="0" cy="-15" r="14" fill="#0D9488"/>
+    </g>
+  </g>
+</svg>

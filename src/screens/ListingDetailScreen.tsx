@@ -99,6 +99,8 @@ export default function ListingDetailScreen() {
         lastMessage: "",
         lastMessageTime: Date.now(),
         unreadCount: 0,
+        channel: "listing" as const,
+        platform: "slabsnap" as const,
       };
       
       createConversation(newConversation);

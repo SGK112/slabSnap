@@ -9,14 +9,14 @@ grok-3-fast-latest
 grok-3-mini-latest
 */
 import OpenAI from "openai";
+import { AI_CONFIG } from "../config/env";
 
 export const getGrokClient = () => {
-  const apiKey = process.env.EXPO_PUBLIC_VIBECODE_GROK_API_KEY;
-  if (!apiKey) {
-    console.warn("Grok API key not found in environment variables");
+  if (!AI_CONFIG.grok.isConfigured) {
+    console.warn("Grok API key not configured - Grok features may not work");
   }
   return new OpenAI({
-    apiKey: apiKey,
+    apiKey: AI_CONFIG.grok.apiKey,
     baseURL: "https://api.x.ai/v1",
   });
 };

@@ -116,7 +116,7 @@ export default function PlatformIntegrationsScreen() {
     
     Alert.alert(
       `${platform?.name} Connected!`,
-      `Your ${platform?.name} messages will now sync to SlabSnap Inbox.`,
+      `Your ${platform?.name} messages will now sync to Remodely Inbox.`,
       [{ text: "OK" }]
     );
   };
@@ -348,7 +348,7 @@ export default function PlatformIntegrationsScreen() {
               <Text style={styles.stepNumberText}>3</Text>
             </View>
             <Text style={styles.stepText}>
-              Reply from SlabSnap and it syncs back to the original platform
+              Reply from Remodely and it syncs back to the original platform
             </Text>
           </View>
           <View style={styles.stepRow}>
