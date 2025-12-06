@@ -52,6 +52,10 @@ import CalendarScreen from "../screens/CalendarScreen";
 import CommunityBoardScreen from "../screens/CommunityBoardScreen";
 import StyleQuizScreen from "../screens/StyleQuizScreen";
 import InspirationFeedScreen from "../screens/InspirationFeedScreen";
+import VendorDashboardScreen from "../screens/VendorDashboardScreen";
+import CreatePromotionScreen from "../screens/CreatePromotionScreen";
+import CreateQuoteScreen from "../screens/CreateQuoteScreen";
+import SubscriptionScreen from "../screens/SubscriptionScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -94,6 +98,10 @@ export type RootStackParamList = {
   CommunityBoard: undefined;
   StyleQuiz: undefined;
   InspirationFeed: undefined;
+  VendorDashboard: undefined;
+  CreatePromotion: undefined;
+  CreateQuote: { quoteRequest?: any; recipient?: any };
+  Subscription: undefined;
 };
 
 export type TabParamList = {
@@ -503,6 +511,36 @@ export default function RootNavigator() {
           options={{
             headerShown: false,
             presentation: "fullScreenModal",
+          }}
+        />
+        <Stack.Screen
+          name="VendorDashboard"
+          component={VendorDashboardScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="CreatePromotion"
+          component={CreatePromotionScreen}
+          options={{
+            headerShown: false,
+            presentation: "modal",
+          }}
+        />
+        <Stack.Screen
+          name="CreateQuote"
+          component={CreateQuoteScreen}
+          options={{
+            headerShown: false,
+            presentation: "modal",
+          }}
+        />
+        <Stack.Screen
+          name="Subscription"
+          component={SubscriptionScreen}
+          options={{
+            headerShown: false,
           }}
         />
       </Stack.Navigator>

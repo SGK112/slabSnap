@@ -15,6 +15,7 @@ import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
 import shopifyRoutes from './routes/shopify.js';
 import contactRoutes from './routes/contact.js';
+import subscriptionRoutes from './routes/subscriptions.js';
 
 dotenv.config();
 
@@ -82,6 +83,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/shopify', shopifyRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {

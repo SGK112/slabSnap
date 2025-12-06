@@ -1,43 +1,54 @@
 /**
  * REMODELY.AI Design System - Color Palette
- * Primary: Blue - Professional, trustworthy
- * Accent: Yellow/Gold - Energy, optimism
- * Red: Power, urgency, action
- * Secondary: Teal - Balance, freshness
- *
- * Brand Colors: Blue (#2563eb) + Red (#dc2626) + Yellow (#fbbf24)
+ * Primary: Vibrant Coral/Orange - Energetic, modern, standout
+ * Secondary: Deep Navy - Professional contrast
+ * Accent: Gold - Premium highlights
  */
 
 export const colors = {
-  // Primary - Professional Blue
+  // Primary - Vibrant Coral/Orange (STANDOUT BRAND COLOR)
   primary: {
-    50: '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6', // Main blue
-    600: '#2563eb', // Primary brand color
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8a',
+    50: '#fff7ed',
+    100: '#ffedd5',
+    200: '#fed7aa',
+    300: '#fdba74',
+    400: '#fb923c',
+    500: '#f97316', // Main orange
+    600: '#FF6B35', // PRIMARY BRAND COLOR - Vibrant Coral
+    700: '#ea580c',
+    800: '#c2410c',
+    900: '#9a3412',
   },
 
-  // Red - Power, urgency (NEW brand color)
+  // Navy - Professional contrast
+  navy: {
+    50: '#f0f4ff',
+    100: '#e0e7ff',
+    200: '#c7d2fe',
+    300: '#a5b4fc',
+    400: '#818cf8',
+    500: '#1e3a5f',
+    600: '#172e4d', // Deep navy for contrast
+    700: '#0f1f33',
+    800: '#0a1628',
+    900: '#050b14',
+  },
+
+  // Red - Urgency, errors
   red: {
     50: '#fef2f2',
     100: '#fee2e2',
     200: '#fecaca',
     300: '#fca5a5',
     400: '#f87171',
-    500: '#ef4444', // Main red
-    600: '#dc2626', // Brand red
+    500: '#ef4444',
+    600: '#dc2626',
     700: '#b91c1c',
     800: '#991b1b',
     900: '#7f1d1d',
   },
 
-  // Secondary - Teal (complementary)
+  // Secondary - Teal (fresh complement)
   secondary: {
     100: '#ccfbf1',
     200: '#99f6e4',
@@ -47,17 +58,17 @@ export const colors = {
     600: '#0d9488',
   },
 
-  // Accent - Yellow/Gold (energy, action)
+  // Accent - Gold (premium)
   accent: {
     100: '#fef3c7',
     200: '#fde68a',
     300: '#fcd34d',
-    400: '#fbbf24', // Main yellow - Brand color
-    500: '#f59e0b', // Amber
+    400: '#fbbf24',
+    500: '#f59e0b',
     600: '#d97706',
   },
 
-  // Yellow - Sunshine highlights
+  // Yellow - Highlights
   yellow: {
     100: '#fef9c3',
     200: '#fef08a',
@@ -67,17 +78,17 @@ export const colors = {
     600: '#ca8a04',
   },
 
-  // Neutrals - Slate Gray
+  // Neutrals - Warm Gray
   neutral: {
-    50: '#f8fafc',
-    100: '#f1f5f9',
-    200: '#e2e8f0',
-    300: '#cbd5e1',
-    400: '#94a3b8',
-    500: '#64748b',
-    600: '#475569',
-    700: '#334155',
-    800: '#1e293b',
+    50: '#fafaf9',
+    100: '#f5f5f4',
+    200: '#e7e5e4',
+    300: '#d6d3d1',
+    400: '#a8a29e',
+    500: '#78716c',
+    600: '#57534e',
+    700: '#44403c',
+    800: '#292524',
   },
 
   // Semantic Colors
@@ -102,23 +113,23 @@ export const colors = {
   // Background
   background: {
     primary: '#ffffff',
-    secondary: '#f8fafc',
-    tertiary: '#f1f5f9',
+    secondary: '#fafaf9',
+    tertiary: '#f5f5f4',
   },
 
   // Text
   text: {
-    primary: '#0f172a',
-    secondary: '#334155',
-    tertiary: '#64748b',
-    quaternary: '#94a3b8',
+    primary: '#1c1917',
+    secondary: '#44403c',
+    tertiary: '#78716c',
+    quaternary: '#a8a29e',
   },
 
   // Borders
   border: {
-    light: '#f1f5f9',
-    main: '#e2e8f0',
-    dark: '#cbd5e1',
+    light: '#f5f5f4',
+    main: '#e7e5e4',
+    dark: '#d6d3d1',
   },
 };
 
