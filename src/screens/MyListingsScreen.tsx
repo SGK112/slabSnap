@@ -267,7 +267,7 @@ export default function MyListingsScreen() {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
         {activeTab === "listings" ? (
           myListings.length === 0 ? (
             <View style={styles.emptyContent}>
@@ -276,6 +276,13 @@ export default function MyListingsScreen() {
               <Text style={styles.emptyContentText}>
                 Create your first listing to start selling
               </Text>
+              <Pressable
+                style={styles.createFirstButton}
+                onPress={() => navigation.navigate("CreateListing")}
+              >
+                <Ionicons name="add-circle" size={20} color="#fff" />
+                <Text style={styles.createFirstButtonText}>Create Listing</Text>
+              </Pressable>
             </View>
           ) : (
             <>
@@ -325,6 +332,14 @@ export default function MyListingsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <Pressable
+        style={styles.fab}
+        onPress={() => navigation.navigate(activeTab === "listings" ? "CreateListing" : "PostJob")}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -623,5 +638,41 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#9ca3af',
     textAlign: 'center',
+  },
+  createFirstButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10b981',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 24,
+    gap: 8,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  createFirstButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

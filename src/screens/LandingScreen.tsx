@@ -12,65 +12,83 @@ import Animated, {
   withDelay,
 } from "react-native-reanimated";
 
-// Remodeling categories data with Ionicons
+// Expanded remodeling categories - Blue, Red, Yellow brand colors
 const categories = [
-  { id: 1, name: "Countertops", icon: "layers-outline" as const, color: colors.primary[500] },
-  { id: 2, name: "Flooring", icon: "grid-outline" as const, color: colors.accent[500] },
-  { id: 3, name: "Cabinets", icon: "cube-outline" as const, color: colors.secondary[500] },
-  { id: 4, name: "Tile", icon: "apps-outline" as const, color: colors.primary[600] },
+  { id: 1, name: "Countertops", icon: "layers-outline" as const, color: colors.primary[600] },
+  { id: 2, name: "Flooring", icon: "grid-outline" as const, color: colors.red[600] },
+  { id: 3, name: "Cabinets", icon: "cube-outline" as const, color: colors.accent[500] },
+  { id: 4, name: "Lighting", icon: "bulb-outline" as const, color: colors.primary[500] },
+  { id: 5, name: "Appliances", icon: "thermometer-outline" as const, color: colors.red[500] },
+  { id: 6, name: "Plumbing", icon: "water-outline" as const, color: colors.primary[700] },
 ];
 
-// Sample preview listings with gradient colors for stone simulation
+// Sample preview products across categories
 const previewListings = [
   {
     id: 1,
-    name: "Granite Remnant",
-    size: '24" x 36"',
-    price: "$85",
-    material: "Granite",
-    gradientColors: ['#2c3e50', '#4a5568', '#2d3748'] as const,
-  },
-  {
-    id: 2,
-    name: "Marble Piece",
-    size: '18" x 24"',
-    price: "$120",
-    material: "Marble",
+    name: "Calacatta Gold",
+    size: "Quartz Slab",
+    price: "$75/sqft",
+    material: "Countertops",
     gradientColors: ['#e2e8f0', '#f7fafc', '#edf2f7'] as const,
   },
   {
+    id: 2,
+    name: "Shaker Cabinet",
+    size: "36\" Base",
+    price: "$519",
+    material: "Kitchen",
+    gradientColors: ['#fef3c7', '#fde68a', '#fcd34d'] as const,
+  },
+  {
     id: 3,
-    name: "Quartz Slab",
-    size: '30" x 48"',
-    price: "$150",
-    material: "Quartz",
+    name: "Honey Oak LVP",
+    size: "Luxury Vinyl",
+    price: "$3.79/sqft",
+    material: "Flooring",
     gradientColors: ['#d4a574', '#c4a77d', '#b8956f'] as const,
   },
   {
     id: 4,
-    name: "Quartzite",
-    size: '22" x 30"',
-    price: "$95",
-    material: "Quartzite",
-    gradientColors: ['#718096', '#a0aec0', '#718096'] as const,
+    name: "Island Pendant",
+    size: "3-Light",
+    price: "$311",
+    material: "Lighting",
+    gradientColors: ['#718096', '#a0aec0', '#cbd5e0'] as const,
+  },
+];
+
+// User type cards
+const userTypes = [
+  {
+    id: 1,
+    title: "Homeowners",
+    desc: "Plan & budget your remodel",
+    icon: "home-outline" as const
+  },
+  {
+    id: 2,
+    title: "Contractors",
+    desc: "Quote, source & manage",
+    icon: "construct-outline" as const
+  },
+  {
+    id: 3,
+    title: "Vendors",
+    desc: "Sell your products",
+    icon: "storefront-outline" as const
   },
 ];
 
 export default function LandingScreen({ navigation }: any) {
 
-  // Animate remnant blocks
-  const block1Opacity = useSharedValue(0);
-  const block1TranslateX = useSharedValue(-100);
-
-  const block2Opacity = useSharedValue(0);
-  const block2TranslateX = useSharedValue(100);
-
-  const block3Opacity = useSharedValue(0);
-  const block3TranslateY = useSharedValue(100);
-
   // Logo animation
   const logoScale = useSharedValue(0.8);
   const logoOpacity = useSharedValue(0);
+
+  // Icon animation
+  const iconRotate = useSharedValue(0);
+  const iconScale = useSharedValue(0.5);
 
   // Categories animation
   const categoriesOpacity = useSharedValue(0);
@@ -81,42 +99,27 @@ export default function LandingScreen({ navigation }: any) {
   const previewTranslateY = useSharedValue(30);
 
   useEffect(() => {
+    // Icon entrance with rotation
+    iconScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+    iconRotate.value = withSpring(360, { damping: 15, stiffness: 80 });
+
     // Logo entrance
-    logoOpacity.value = withTiming(1, { duration: 800 });
-    logoScale.value = withSpring(1, {
-      damping: 10,
-      stiffness: 100,
-    });
-
-    // Block 1: Slide from left
     setTimeout(() => {
-      block1Opacity.value = withTiming(1, { duration: 500 });
-      block1TranslateX.value = withSpring(0, { damping: 12, stiffness: 90 });
+      logoOpacity.value = withTiming(1, { duration: 600 });
+      logoScale.value = withSpring(1, { damping: 10, stiffness: 100 });
     }, 300);
-
-    // Block 2: Slide from right
-    setTimeout(() => {
-      block2Opacity.value = withTiming(1, { duration: 500 });
-      block2TranslateX.value = withSpring(0, { damping: 12, stiffness: 90 });
-    }, 500);
-
-    // Block 3: Slide from bottom
-    setTimeout(() => {
-      block3Opacity.value = withTiming(1, { duration: 500 });
-      block3TranslateY.value = withSpring(0, { damping: 12, stiffness: 90 });
-    }, 700);
 
     // Categories fade in
     setTimeout(() => {
       categoriesOpacity.value = withTiming(1, { duration: 600 });
       categoriesTranslateY.value = withSpring(0, { damping: 15, stiffness: 80 });
-    }, 900);
+    }, 600);
 
     // Preview fade in
     setTimeout(() => {
       previewOpacity.value = withTiming(1, { duration: 600 });
       previewTranslateY.value = withSpring(0, { damping: 15, stiffness: 80 });
-    }, 1100);
+    }, 900);
   }, []);
 
   const logoStyle = useAnimatedStyle(() => ({
@@ -124,19 +127,11 @@ export default function LandingScreen({ navigation }: any) {
     transform: [{ scale: logoScale.value }],
   }));
 
-  const block1Style = useAnimatedStyle(() => ({
-    opacity: block1Opacity.value,
-    transform: [{ translateX: block1TranslateX.value }],
-  }));
-
-  const block2Style = useAnimatedStyle(() => ({
-    opacity: block2Opacity.value,
-    transform: [{ translateX: block2TranslateX.value }],
-  }));
-
-  const block3Style = useAnimatedStyle(() => ({
-    opacity: block3Opacity.value,
-    transform: [{ translateY: block3TranslateY.value }],
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: iconScale.value },
+      { rotate: `${iconRotate.value}deg` },
+    ],
   }));
 
   const categoriesStyle = useAnimatedStyle(() => ({
@@ -163,29 +158,53 @@ export default function LandingScreen({ navigation }: any) {
           >
             {/* Logo Section */}
             <View style={styles.brandContainer}>
-              {/* Animated Blocks - Blue and Yellow theme */}
-              <View style={styles.blocksContainer}>
-                <Animated.View style={[styles.block1, block1Style]} />
-                <Animated.View style={[styles.block2, block2Style]} />
-                <Animated.View style={[styles.block3, block3Style]} />
-              </View>
-
-              {/* Logo */}
-              <Animated.View style={[logoStyle, styles.logoContainer]}>
-                <View style={styles.logoRow}>
-                  <Text style={styles.logoMain}>REMODELY</Text>
-                  <View style={styles.aiPill}>
-                    <Text style={styles.aiText}>.AI</Text>
-                  </View>
-                </View>
+              {/* Animated Logo Icon */}
+              <Animated.View style={[styles.logoIconContainer, iconStyle]}>
+                <LinearGradient
+                  colors={[colors.primary[600], colors.primary[700]]}
+                  style={styles.logoIconGradient}
+                >
+                  <Ionicons name="home" size={44} color="#ffffff" />
+                </LinearGradient>
               </Animated.View>
-              <Text style={styles.tagline}>Your Local Remodeling Marketplace</Text>
+
+              {/* Logo Text */}
+              <Animated.View style={[logoStyle, styles.logoContainer]}>
+                <Text style={styles.logoMain}>REMODELY</Text>
+                <Text style={styles.logoAi}>.AI</Text>
+              </Animated.View>
+              <Text style={styles.tagline}>Your AI-Powered Remodeling Platform</Text>
+              <Text style={styles.subTagline}>Plan. Source. Build.</Text>
               <View style={styles.taglineDivider} />
             </View>
 
+            {/* Who Is This For Section */}
+            <Animated.View style={[styles.userTypesSection, categoriesStyle]}>
+              <Text style={styles.sectionTitle}>Built For Everyone</Text>
+              <View style={styles.userTypesRow}>
+                {userTypes.map((type) => (
+                  <Pressable
+                    key={type.id}
+                    style={styles.userTypeCard}
+                    onPress={() => navigation.navigate("MainTabs")}
+                  >
+                    <View style={styles.userTypeIconContainer}>
+                      <Ionicons
+                        name={type.icon}
+                        size={24}
+                        color={colors.primary[600]}
+                      />
+                    </View>
+                    <Text style={styles.userTypeTitle}>{type.title}</Text>
+                    <Text style={styles.userTypeDesc}>{type.desc}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+
             {/* Categories Section */}
             <Animated.View style={[styles.categoriesSection, categoriesStyle]}>
-              <Text style={styles.sectionTitle}>Browse by Category</Text>
+              <Text style={styles.sectionTitle}>Browse Categories</Text>
               <View style={styles.categoriesGrid}>
                 {categories.map((category) => (
                   <Pressable
@@ -196,7 +215,7 @@ export default function LandingScreen({ navigation }: any) {
                     <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '15' }]}>
                       <Ionicons
                         name={category.icon}
-                        size={26}
+                        size={24}
                         color={category.color}
                       />
                     </View>
@@ -209,7 +228,7 @@ export default function LandingScreen({ navigation }: any) {
             {/* Preview Listings Section */}
             <Animated.View style={[styles.previewSection, previewStyle]}>
               <View style={styles.previewHeader}>
-                <Text style={styles.sectionTitle}>Featured Materials</Text>
+                <Text style={styles.sectionTitle}>Featured Products</Text>
                 <Pressable onPress={() => navigation.navigate("MainTabs")}>
                   <Text style={styles.seeAllText}>See All</Text>
                 </Pressable>
@@ -249,19 +268,50 @@ export default function LandingScreen({ navigation }: any) {
               </ScrollView>
             </Animated.View>
 
-            {/* Features Section */}
+            {/* Features Section - Brand colors Blue, Red, Yellow */}
             <View style={styles.featuresSection}>
               <View style={styles.featureItem}>
-                <Ionicons name="location-outline" size={22} color={colors.primary[600]} />
-                <Text style={styles.featureText}>Find local materials</Text>
+                <Ionicons name="sparkles-outline" size={22} color={colors.primary[600]} />
+                <Text style={styles.featureText}>AI-Powered Tools</Text>
               </View>
               <View style={styles.featureItem}>
-                <Ionicons name="cash-outline" size={22} color={colors.primary[600]} />
-                <Text style={styles.featureText}>Save up to 70%</Text>
+                <Ionicons name="calculator-outline" size={22} color={colors.red[600]} />
+                <Text style={styles.featureText}>Instant Quotes</Text>
               </View>
               <View style={styles.featureItem}>
-                <Ionicons name="leaf-outline" size={22} color={colors.primary[600]} />
-                <Text style={styles.featureText}>Eco-friendly choice</Text>
+                <Ionicons name="storefront-outline" size={22} color={colors.accent[500]} />
+                <Text style={styles.featureText}>Local Vendors</Text>
+              </View>
+            </View>
+
+            {/* Platform Highlights */}
+            <View style={styles.highlightsSection}>
+              <View style={styles.highlightItem}>
+                <View style={styles.highlightIconContainer}>
+                  <Ionicons name="clipboard-outline" size={24} color={colors.primary[600]} />
+                </View>
+                <View style={styles.highlightContent}>
+                  <Text style={styles.highlightTitle}>Project Planning</Text>
+                  <Text style={styles.highlightDesc}>Budget calculator, Quick Quote, and AI estimator</Text>
+                </View>
+              </View>
+              <View style={styles.highlightItem}>
+                <View style={styles.highlightIconContainer}>
+                  <Ionicons name="cube-outline" size={24} color={colors.red[600]} />
+                </View>
+                <View style={styles.highlightContent}>
+                  <Text style={styles.highlightTitle}>Material Catalog</Text>
+                  <Text style={styles.highlightDesc}>Kitchen, bath, flooring, lighting from local vendors</Text>
+                </View>
+              </View>
+              <View style={styles.highlightItem}>
+                <View style={styles.highlightIconContainer}>
+                  <Ionicons name="people-outline" size={24} color={colors.accent[500]} />
+                </View>
+                <View style={styles.highlightContent}>
+                  <Text style={styles.highlightTitle}>Pro Network</Text>
+                  <Text style={styles.highlightDesc}>Connect with contractors, designers, and installers</Text>
+                </View>
               </View>
             </View>
 
@@ -278,7 +328,7 @@ export default function LandingScreen({ navigation }: any) {
               <Pressable onPress={() => navigation.navigate("Login")}>
                 <Text style={styles.linkText}>Log in</Text>
               </Pressable>
-              <Text style={styles.divider}>•</Text>
+              <Text style={styles.divider}>|</Text>
               <Pressable onPress={() => navigation.navigate("Signup")}>
                 <Text style={styles.linkText}>Sign up</Text>
               </Pressable>
@@ -289,7 +339,7 @@ export default function LandingScreen({ navigation }: any) {
               onPress={() => navigation.navigate("AboutRemnants")}
             >
               <Ionicons name="information-circle-outline" size={18} color={colors.primary[600]} style={{ marginRight: 6 }} />
-              <Text style={styles.learnMoreText}>Learn More</Text>
+              <Text style={styles.learnMoreText}>Learn More About REMODELY</Text>
             </Pressable>
 
             {/* Bottom spacer */}
@@ -323,73 +373,25 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
-  // Animated blocks container
-  blocksContainer: {
-    marginBottom: 30,
-    width: 200,
-    height: 140,
-    position: 'relative',
+  // Logo icon container
+  logoIconContainer: {
+    marginBottom: 16,
   },
-
-  // Blue block
-  block1: {
-    position: 'absolute',
-    top: 0,
-    left: 10,
-    width: 90,
-    height: 55,
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: colors.primary[600],
-    shadowColor: colors.primary[700],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-
-  // Darker blue block
-  block2: {
-    position: 'absolute',
-    top: 5,
-    right: 0,
-    width: 100,
-    height: 75,
-    backgroundColor: colors.primary[600],
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: colors.primary[700],
+  logoIconGradient: {
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: colors.primary[800],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-
-  // Yellow/Gold accent block
-  block3: {
-    position: 'absolute',
-    bottom: 0,
-    left: 30,
-    width: 110,
-    height: 50,
-    backgroundColor: colors.accent[400],
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: colors.accent[500],
-    shadowColor: colors.accent[600],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
 
   // Logo styling
   logoContainer: {
-    alignItems: 'center',
-  },
-  logoRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
@@ -400,26 +402,25 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  aiPill: {
-    backgroundColor: colors.primary[600],
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 4,
-  },
-  aiText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
-    letterSpacing: 1,
+  logoAi: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.primary[600],
   },
   tagline: {
-    fontSize: 15,
-    color: colors.neutral[500],
-    fontWeight: '400',
-    letterSpacing: 0.5,
-    marginTop: 14,
+    fontSize: 16,
+    color: colors.neutral[600],
+    fontWeight: '500',
+    letterSpacing: 0.3,
+    marginTop: 12,
     textAlign: 'center',
+  },
+  subTagline: {
+    fontSize: 14,
+    color: colors.neutral[400],
+    fontWeight: '400',
+    marginTop: 4,
+    letterSpacing: 1,
   },
   taglineDivider: {
     width: 40,
@@ -428,9 +429,55 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     marginTop: 14,
   },
+
+  // User types section
+  userTypesSection: {
+    marginBottom: 24,
+  },
+  userTypesRow: {
+    flexDirection: 'row',
+    marginHorizontal: -4,
+  },
+  userTypeCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 10,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    shadowColor: colors.neutral[800],
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  userTypeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  userTypeTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    textAlign: 'center',
+  },
+  userTypeDesc: {
+    fontSize: 9,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 12,
+  },
+
   learnMoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 16,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -440,18 +487,18 @@ const styles = StyleSheet.create({
     color: colors.primary[600],
     fontWeight: '500',
   },
-  // CTA button - muted blue
+  // CTA button - vibrant red for action
   primaryButton: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.red[600],
     borderRadius: 12,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
     flexDirection: 'row',
-    shadowColor: colors.primary[900],
+    shadowColor: colors.red[900],
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -473,19 +520,19 @@ const styles = StyleSheet.create({
   },
   divider: {
     fontSize: 17,
-    color: colors.neutral[400],
+    color: colors.neutral[300],
     marginHorizontal: 12,
   },
 
   // Categories Section
   categoriesSection: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.neutral[800],
-    marginBottom: 16,
+    marginBottom: 14,
   },
   categoriesGrid: {
     flexDirection: 'row',
@@ -493,11 +540,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   categoryCard: {
-    width: '48%',
+    width: '31%',
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
     alignItems: 'center',
     shadowColor: colors.neutral[800],
     shadowOffset: { width: 0, height: 2 },
@@ -506,28 +553,29 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   categoryIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   categoryName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: colors.neutral[700],
+    textAlign: 'center',
   },
 
   // Preview Section
   previewSection: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   previewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   seeAllText: {
     fontSize: 14,
@@ -538,7 +586,7 @@ const styles = StyleSheet.create({
     paddingRight: 24,
   },
   previewCard: {
-    width: 160,
+    width: 150,
     backgroundColor: '#ffffff',
     borderRadius: 12,
     marginRight: 12,
@@ -550,7 +598,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   previewImageGradient: {
-    height: 110,
+    height: 100,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     position: 'relative',
@@ -604,15 +652,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.neutral[800],
-    marginBottom: 4,
+    marginBottom: 2,
   },
   previewSize: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.neutral[500],
-    marginBottom: 6,
+    marginBottom: 4,
   },
   previewPrice: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.primary[700],
   },
@@ -623,19 +671,61 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     backgroundColor: colors.primary[50],
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 8,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   featureItem: {
     alignItems: 'center',
     flex: 1,
   },
   featureText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: colors.neutral[600],
     marginTop: 6,
     textAlign: 'center',
+  },
+
+  // Highlights Section
+  highlightsSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: colors.neutral[800],
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  highlightItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  highlightIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  highlightContent: {
+    flex: 1,
+  },
+  highlightTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: 2,
+  },
+  highlightDesc: {
+    fontSize: 13,
+    color: colors.neutral[500],
   },
 });

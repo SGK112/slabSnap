@@ -34,14 +34,24 @@ import AdvancedMeasurementScreen from "../screens/AdvancedMeasurementScreen";
 import SimpleMeasurementScreen from "../screens/SimpleMeasurementScreen";
 import SmartMeasurementScreen from "../screens/SmartMeasurementScreen";
 import MeasurementHomeScreen from "../screens/MeasurementHomeScreen";
+import MeasurementCalculatorScreen from "../screens/MeasurementCalculatorScreen";
 import CalibrationCameraScreen from "../screens/CalibrationCameraScreen";
 import MapScreen from "../screens/MapScreen";
+import ToolsScreen from "../screens/ToolsScreen";
 import PlatformIntegrationsScreen from "../screens/PlatformIntegrationsScreen";
 import VendorRelationshipsScreen from "../screens/VendorRelationshipsScreen";
 import AIAssistantScreen from "../screens/AIAssistantScreen";
 import CreateAdScreen from "../screens/CreateAdScreen";
 import PurchaseAdCreditsScreen from "../screens/PurchaseAdCreditsScreen";
 import ShopifyIntegrationScreen from "../screens/ShopifyIntegrationScreen";
+import ProjectBoardScreen from "../screens/ProjectBoardScreen";
+import VendorPortalScreen from "../screens/VendorPortalScreen";
+import MaterialCatalogScreen from "../screens/MaterialCatalogScreen";
+import SalesModeScreen from "../screens/SalesModeScreen";
+import CalendarScreen from "../screens/CalendarScreen";
+import CommunityBoardScreen from "../screens/CommunityBoardScreen";
+import StyleQuizScreen from "../screens/StyleQuizScreen";
+import InspirationFeedScreen from "../screens/InspirationFeedScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -58,6 +68,7 @@ export type RootStackParamList = {
   MyListings: undefined;
   EditProfile: undefined;
   Notifications: undefined;
+  Messages: undefined;
   Privacy: undefined;
   HelpSupport: undefined;
   FAQDetail: { faqId: string };
@@ -67,6 +78,7 @@ export type RootStackParamList = {
   AdvancedMeasurement: undefined;
   SimpleMeasurement: undefined;
   SmartMeasurement: undefined;
+  MeasurementCalculator: undefined;
   CalibrationCamera: { mode: "credit-card" | "dollar-bill"; onCalibrate: (pixelsPerInch: number) => void };
   PlatformIntegrations: undefined;
   VendorRelationships: undefined;
@@ -74,13 +86,21 @@ export type RootStackParamList = {
   CreateAd: undefined;
   PurchaseAdCredits: undefined;
   ShopifyIntegration: undefined;
+  ProjectBoard: undefined;
+  VendorPortal: undefined;
+  MaterialCatalog: undefined;
+  SalesMode: undefined;
+  Calendar: undefined;
+  CommunityBoard: undefined;
+  StyleQuiz: undefined;
+  InspirationFeed: undefined;
 };
 
 export type TabParamList = {
   Home: undefined;
   Map: undefined;
+  Tools: undefined;
   Add: undefined;
-  Messages: undefined;
   Profile: undefined;
 };
 
@@ -100,27 +120,27 @@ function TabNavigator() {
             iconName = focused ? "home" : "home-outline";
           } else if (route.name === "Map") {
             iconName = focused ? "map" : "map-outline";
+          } else if (route.name === "Tools") {
+            iconName = focused ? "construct" : "construct-outline";
           } else if (route.name === "Add") {
             iconName = focused ? "add-circle" : "add-circle-outline";
-          } else if (route.name === "Messages") {
-            iconName = focused ? "chatbubbles" : "chatbubbles-outline";
           } else if (route.name === "Profile") {
             iconName = focused ? "person" : "person-outline";
           }
 
           return <Ionicons name={iconName} size={28} color={color} />;
         },
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: colors.primary[600],
+        tabBarInactiveTintColor: colors.neutral[500],
         headerShown: false,
         tabBarStyle: {
           height: 90,
           paddingBottom: 20,
           paddingTop: 12,
-          backgroundColor: 'white',
+          backgroundColor: colors.background.primary,
           borderTopWidth: 2,
-          borderTopColor: '#e5e7eb',
-          shadowColor: '#000',
+          borderTopColor: colors.primary[100],
+          shadowColor: colors.primary[900],
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
           shadowRadius: 12,
@@ -145,14 +165,14 @@ function TabNavigator() {
         options={{ tabBarLabel: "Map" }}
       />
       <Tab.Screen
-        name="Add"
-        component={CreateListingScreen}
-        options={{ tabBarLabel: "Add" }}
+        name="Tools"
+        component={ToolsScreen}
+        options={{ tabBarLabel: "Tools" }}
       />
       <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{ tabBarLabel: t.common.messages }}
+        name="Add"
+        component={CreateListingScreen}
+        options={{ tabBarLabel: "Sell" }}
       />
       <Tab.Screen
         name="Profile"
@@ -290,6 +310,13 @@ export default function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="Messages"
+          component={MessagesScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="Privacy"
           component={PrivacyScreen}
           options={{
@@ -359,6 +386,14 @@ export default function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="MeasurementCalculator"
+          component={MeasurementCalculatorScreen}
+          options={{
+            headerShown: false,
+            presentation: "modal",
+          }}
+        />
+        <Stack.Screen
           name="CalibrationCamera"
           component={CalibrationCameraScreen}
           options={{
@@ -408,6 +443,66 @@ export default function RootNavigator() {
           component={ShopifyIntegrationScreen}
           options={{
             headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="ProjectBoard"
+          component={ProjectBoardScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="VendorPortal"
+          component={VendorPortalScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="MaterialCatalog"
+          component={MaterialCatalogScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="SalesMode"
+          component={SalesModeScreen}
+          options={{
+            headerShown: false,
+            presentation: "fullScreenModal",
+          }}
+        />
+        <Stack.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="CommunityBoard"
+          component={CommunityBoardScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="StyleQuiz"
+          component={StyleQuizScreen}
+          options={{
+            headerShown: false,
+            presentation: "fullScreenModal",
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen
+          name="InspirationFeed"
+          component={InspirationFeedScreen}
+          options={{
+            headerShown: false,
+            presentation: "fullScreenModal",
           }}
         />
       </Stack.Navigator>

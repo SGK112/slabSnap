@@ -2,7 +2,10 @@
  * REMODELY.AI Design System - Color Palette
  * Primary: Blue - Professional, trustworthy
  * Accent: Yellow/Gold - Energy, optimism
+ * Red: Power, urgency, action
  * Secondary: Teal - Balance, freshness
+ *
+ * Brand Colors: Blue (#2563eb) + Red (#dc2626) + Yellow (#fbbf24)
  */
 
 export const colors = {
@@ -20,6 +23,20 @@ export const colors = {
     900: '#1e3a8a',
   },
 
+  // Red - Power, urgency (NEW brand color)
+  red: {
+    50: '#fef2f2',
+    100: '#fee2e2',
+    200: '#fecaca',
+    300: '#fca5a5',
+    400: '#f87171',
+    500: '#ef4444', // Main red
+    600: '#dc2626', // Brand red
+    700: '#b91c1c',
+    800: '#991b1b',
+    900: '#7f1d1d',
+  },
+
   // Secondary - Teal (complementary)
   secondary: {
     100: '#ccfbf1',
@@ -35,7 +52,7 @@ export const colors = {
     100: '#fef3c7',
     200: '#fde68a',
     300: '#fcd34d',
-    400: '#fbbf24', // Main yellow
+    400: '#fbbf24', // Main yellow - Brand color
     500: '#f59e0b', // Amber
     600: '#d97706',
   },

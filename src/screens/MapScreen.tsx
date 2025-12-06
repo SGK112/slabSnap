@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   Linking,
   TextInput,
   ActivityIndicator,
+  Animated as RNAnimated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Marker, Region, Polyline } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../utils/colors";
 import { useVendorStore } from "../state/vendorStore";
@@ -24,9 +25,19 @@ import { Job } from "../types/jobs";
 import * as Location from "expo-location";
 import { BlurView } from "expo-blur";
 import { useNavigation } from "@react-navigation/native";
+import { useAuthStore, ProjectIntent, ProjectType } from "../state/authStore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../nav";
 import { geocodeAddress } from "../utils/geocoding";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  interpolate,
+  Extrapolate,
+} from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -104,6 +115,19 @@ const VENDOR_TYPE_LABELS: Record<VendorType, string> = {
   architect: "Architect",
 };
 
+// Project type visual config
+const PROJECT_TYPE_CONFIG: Record<ProjectType, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
+  kitchen: { icon: "restaurant", color: "#f97316", label: "Kitchen" },
+  bathroom: { icon: "water", color: "#06b6d4", label: "Bathroom" },
+  outdoor: { icon: "sunny", color: "#22c55e", label: "Outdoor" },
+  flooring: { icon: "apps", color: "#a855f7", label: "Flooring" },
+  countertops: { icon: "layers", color: "#6366f1", label: "Countertops" },
+  plumbing: { icon: "construct", color: "#3b82f6", label: "Plumbing" },
+  electrical: { icon: "flash", color: "#eab308", label: "Electrical" },
+  landscaping: { icon: "leaf", color: "#10b981", label: "Landscaping" },
+  general: { icon: "build", color: "#6b7280", label: "General" },
+};
+
 // Keyword mapping for intelligent search
 const SEARCH_KEYWORDS: Record<string, VendorType[]> = {
   // Countertop related
@@ -154,6 +178,179 @@ const SEARCH_KEYWORDS: Record<string, VendorType[]> = {
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// Types for clustering
+interface MapCluster {
+  id: string;
+  latitude: number;
+  longitude: number;
+  count: number;
+  items: Array<{ type: "vendor" | "listing" | "job"; item: Vendor | Listing | Job }>;
+}
+
+// Calculate distance between two coordinates in miles
+function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Check if vendor is currently open based on business hours
+function isVendorOpen(vendor: Vendor): boolean {
+  // Default business hours if not specified
+  const defaultHours = {
+    open: 8, // 8 AM
+    close: 18, // 6 PM
+  };
+
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+
+  // Weekend check - assume closed on Sunday, reduced hours Saturday
+  if (currentDay === 0) return false; // Sunday - closed
+  if (currentDay === 6) {
+    // Saturday - 9 AM to 3 PM
+    return currentHour >= 9 && currentHour < 15;
+  }
+
+  // Use vendor's hours if available, otherwise default
+  const hours = vendor.businessHours || defaultHours;
+  const openHour = typeof hours === "object" && "open" in hours ? hours.open : defaultHours.open;
+  const closeHour = typeof hours === "object" && "close" in hours ? hours.close : defaultHours.close;
+
+  return currentHour >= openHour && currentHour < closeHour;
+}
+
+// Simple clustering algorithm
+function clusterMarkers(
+  vendors: Vendor[],
+  listings: Listing[],
+  jobs: Job[],
+  zoomLevel: number,
+  showVendors: boolean,
+  showListings: boolean,
+  showJobs: boolean
+): { clusters: MapCluster[]; unclustered: Array<{ type: string; item: any }> } {
+  // Clustering threshold based on zoom level (in degrees)
+  // Lower zoom = more clustered, higher zoom = less clustered
+  const clusterThreshold = zoomLevel > 0.1 ? 0.08 : zoomLevel > 0.05 ? 0.04 : 0.02;
+
+  const allItems: Array<{ type: "vendor" | "listing" | "job"; item: any; lat: number; lng: number }> = [];
+
+  // Collect all items with coordinates
+  if (showVendors) {
+    vendors.forEach(v => {
+      if (v.location?.coordinates) {
+        allItems.push({
+          type: "vendor",
+          item: v,
+          lat: v.location.coordinates.latitude,
+          lng: v.location.coordinates.longitude,
+        });
+      }
+    });
+  }
+
+  if (showListings) {
+    listings.forEach(l => {
+      if (l.coordinates) {
+        allItems.push({
+          type: "listing",
+          item: l,
+          lat: l.coordinates.latitude,
+          lng: l.coordinates.longitude,
+        });
+      }
+    });
+  }
+
+  if (showJobs) {
+    jobs.forEach(j => {
+      if (j.coordinates) {
+        allItems.push({
+          type: "job",
+          item: j,
+          lat: j.coordinates.latitude,
+          lng: j.coordinates.longitude,
+        });
+      }
+    });
+  }
+
+  // If few items or zoomed in, don't cluster
+  if (allItems.length <= 5 || zoomLevel < 0.03) {
+    return {
+      clusters: [],
+      unclustered: allItems.map(i => ({ type: i.type, item: i.item })),
+    };
+  }
+
+  const clusters: MapCluster[] = [];
+  const clustered = new Set<number>();
+
+  // Simple greedy clustering
+  for (let i = 0; i < allItems.length; i++) {
+    if (clustered.has(i)) continue;
+
+    const nearby: typeof allItems = [allItems[i]];
+    clustered.add(i);
+
+    for (let j = i + 1; j < allItems.length; j++) {
+      if (clustered.has(j)) continue;
+
+      const latDiff = Math.abs(allItems[i].lat - allItems[j].lat);
+      const lngDiff = Math.abs(allItems[i].lng - allItems[j].lng);
+
+      if (latDiff < clusterThreshold && lngDiff < clusterThreshold) {
+        nearby.push(allItems[j]);
+        clustered.add(j);
+      }
+    }
+
+    if (nearby.length >= 3) {
+      // Create cluster
+      const avgLat = nearby.reduce((sum, n) => sum + n.lat, 0) / nearby.length;
+      const avgLng = nearby.reduce((sum, n) => sum + n.lng, 0) / nearby.length;
+
+      clusters.push({
+        id: `cluster-${i}`,
+        latitude: avgLat,
+        longitude: avgLng,
+        count: nearby.length,
+        items: nearby.map(n => ({ type: n.type, item: n.item })),
+      });
+    }
+  }
+
+  // Get unclustered items
+  const unclustered = allItems
+    .filter((_, i) => !clustered.has(i) || allItems.filter((_, j) => clustered.has(j)).length < 3)
+    .map(i => ({ type: i.type, item: i.item }));
+
+  return { clusters, unclustered };
+}
+
+// Route stop interface
+interface RouteStop {
+  id: string;
+  name: string;
+  coordinates: { latitude: number; longitude: number };
+  type: "vendor" | "listing" | "job" | "user";
+}
 
 // Memoized Vendor Marker Component to prevent flickering
 const VendorMarker = React.memo(({ 
@@ -241,17 +438,17 @@ const ListingMarker = React.memo(({
 });
 
 // Memoized Job Marker Component to prevent flickering
-const JobMarker = React.memo(({ 
-  job, 
-  isSelected, 
-  onPress 
-}: { 
-  job: Job; 
-  isSelected: boolean; 
+const JobMarker = React.memo(({
+  job,
+  isSelected,
+  onPress
+}: {
+  job: Job;
+  isSelected: boolean;
   onPress: () => void;
 }) => {
   if (!job.coordinates) return null;
-  
+
   return (
     <Marker
       key={`job-${job.id}`}
@@ -279,6 +476,51 @@ const JobMarker = React.memo(({
             <Text style={styles.jobBadgeText}>{job.bidCount}</Text>
           </View>
         )}
+      </View>
+    </Marker>
+  );
+});
+
+// Memoized Project Marker Component for user's own projects
+const ProjectMarker = React.memo(({
+  project,
+  isSelected,
+  onPress,
+}: {
+  project: ProjectIntent;
+  isSelected: boolean;
+  onPress: () => void;
+}) => {
+  if (!project.location) return null;
+
+  const config = PROJECT_TYPE_CONFIG[project.type] || PROJECT_TYPE_CONFIG.general;
+
+  return (
+    <Marker
+      key={`project-${project.id}`}
+      coordinate={{
+        latitude: project.location.latitude,
+        longitude: project.location.longitude,
+      }}
+      onPress={onPress}
+    >
+      <View style={styles.markerContainer}>
+        <View
+          style={[
+            styles.projectMarker,
+            {
+              backgroundColor: config.color,
+              borderColor: isSelected ? "white" : "transparent",
+              borderWidth: isSelected ? 3 : 0,
+            },
+          ]}
+        >
+          <Ionicons name={config.icon} size={18} color="white" />
+        </View>
+        {/* "My Project" badge */}
+        <View style={styles.myProjectBadge}>
+          <Ionicons name="home" size={10} color="#fff" />
+        </View>
       </View>
     </Marker>
   );
@@ -366,7 +608,11 @@ export default function MapScreen() {
   const { vendors, loadMockVendors, favoriteVendorIds, toggleFavoriteVendor } = useVendorStore();
   const { listings, loadMockData, favoriteIds, toggleFavorite } = useListingsStore();
   const { jobs, loadMockJobs } = useJobsStore();
+  const { preferences } = useAuthStore();
   const mapRef = useRef<MapView>(null);
+
+  // Get user's projects from preferences
+  const myProjects = (preferences.activeProjects || []).filter(p => p.location);
   
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
@@ -374,16 +620,33 @@ export default function MapScreen() {
   const [showFullCard, setShowFullCard] = useState(false); // Toggle between preview and full card
   const [selectedTypes, setSelectedTypes] = useState<VendorType[]>([]); // Empty = show all types
   const [userLocation, setUserLocation] = useState<Region | null>(null);
+  const [mapRegion, setMapRegion] = useState<Region>({
+    latitude: 33.6369,  // Default: Surprise, AZ
+    longitude: -112.3652,
+    latitudeDelta: 0.15,
+    longitudeDelta: 0.15,
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
   const [showListings, setShowListings] = useState(true); // Enable listings by default
   const [showVendors, setShowVendors] = useState(true);
   const [showJobs, setShowJobs] = useState(false);
+  const [showMyProjects, setShowMyProjects] = useState(true); // Show user's pinned projects
+  const [selectedProject, setSelectedProject] = useState<ProjectIntent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [geocodedVendors, setGeocodedVendors] = useState<Vendor[]>([]);
   const [geocodedListings, setGeocodedListings] = useState<Listing[]>([]);
   const [geocodedJobs, setGeocodedJobs] = useState<Job[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // New map enhancement states
+  const [showOpenOnly, setShowOpenOnly] = useState(false); // "Open Now" filter
+  const [currentZoom, setCurrentZoom] = useState(0.15); // Track zoom level for clustering
+  const [routeMode, setRouteMode] = useState(false); // Route planner mode
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]); // Stops in route
+  const [showNearbyVendors, setShowNearbyVendors] = useState(false); // "Near This Listing" mode
+  const [nearbyRadius, setNearbyRadius] = useState(5); // Miles radius for nearby
+  const [selectedCluster, setSelectedCluster] = useState<MapCluster | null>(null); // Expanded cluster
 
   useEffect(() => {
     // Always reload vendors to ensure latest data (especially for new Arizona vendors)
@@ -508,9 +771,18 @@ export default function MapScreen() {
   const getUserLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
+      if (status !== "granted") {
+        console.log("[MapScreen] Location permission not granted");
+        return;
+      }
 
-      const location = await Location.getCurrentPositionAsync({});
+      console.log("[MapScreen] Getting current position...");
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      console.log(`[MapScreen] Got location: ${location.coords.latitude}, ${location.coords.longitude}`);
+
       // 5 mile radius = ~0.072 degrees latitude, so delta of 0.15 covers ~10 miles
       const region: Region = {
         latitude: location.coords.latitude,
@@ -518,13 +790,16 @@ export default function MapScreen() {
         latitudeDelta: 0.15,
         longitudeDelta: 0.15,
       };
+
       setUserLocation(region);
-      
+      setMapRegion(region);
+
+      // Animate map to user location
       if (mapRef.current) {
         mapRef.current.animateToRegion(region, 1000);
       }
     } catch (error) {
-      console.error("Error getting location:", error);
+      console.error("[MapScreen] Error getting location:", error);
     }
   };
 
@@ -532,14 +807,32 @@ export default function MapScreen() {
   const vendorsToUse = geocodedVendors.length > 0 ? geocodedVendors : vendors;
   const filteredVendors = vendorsToUse.filter((vendor) => {
     if (!showVendors) return false;
-    
+
     const matchesTypeFilter = selectedTypes.length === 0 || selectedTypes.includes(vendor.type);
-    
+
     // Use intelligent search matching
     const matchesSearch = vendorMatchesSearch(vendor, searchQuery);
-    
-    return matchesTypeFilter && matchesSearch;
+
+    // "Open Now" filter
+    const matchesOpenFilter = !showOpenOnly || isVendorOpen(vendor);
+
+    // "Near This Listing" filter
+    let matchesNearbyFilter = true;
+    if (showNearbyVendors && selectedListing?.coordinates && vendor.location?.coordinates) {
+      const distance = calculateDistance(
+        selectedListing.coordinates.latitude,
+        selectedListing.coordinates.longitude,
+        vendor.location.coordinates.latitude,
+        vendor.location.coordinates.longitude
+      );
+      matchesNearbyFilter = distance <= nearbyRadius;
+    }
+
+    return matchesTypeFilter && matchesSearch && matchesOpenFilter && matchesNearbyFilter;
   });
+
+  // Calculate open vendor count for UI badge
+  const openVendorCount = vendorsToUse.filter(v => showVendors && isVendorOpen(v)).length;
 
   // Filter listings - use geocoded listings if available
   const listingsToUse = geocodedListings.length > 0 ? geocodedListings : listings;
@@ -614,6 +907,7 @@ export default function MapScreen() {
     setSelectedVendor(vendor);
     setSelectedListing(null);
     setSelectedJob(null);
+    setSelectedProject(null);
     setShowFullCard(false); // Show preview first
     
     if (mapRef.current) {
@@ -628,10 +922,11 @@ export default function MapScreen() {
 
   const handleListingMarkerPress = (listing: Listing) => {
     if (!listing.coordinates) return;
-    
+
     setSelectedListing(listing);
     setSelectedVendor(null);
     setSelectedJob(null);
+    setSelectedProject(null);
     setShowFullCard(false); // Show preview first
     
     if (mapRef.current) {
@@ -646,16 +941,36 @@ export default function MapScreen() {
 
   const handleJobMarkerPress = (job: Job) => {
     if (!job.coordinates) return;
-    
+
     setSelectedJob(job);
     setSelectedVendor(null);
     setSelectedListing(null);
+    setSelectedProject(null);
     setShowFullCard(false); // Show preview first
-    
+
     if (mapRef.current) {
       mapRef.current.animateToRegion({
         latitude: job.coordinates.latitude,
         longitude: job.coordinates.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 500);
+    }
+  };
+
+  const handleProjectMarkerPress = (project: ProjectIntent) => {
+    if (!project.location) return;
+
+    setSelectedProject(project);
+    setSelectedVendor(null);
+    setSelectedListing(null);
+    setSelectedJob(null);
+    setShowFullCard(false);
+
+    if (mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: project.location.latitude,
+        longitude: project.location.longitude,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       }, 500);
@@ -677,72 +992,288 @@ export default function MapScreen() {
     Linking.openURL(url);
   };
 
+  // Track zoom level for clustering
+  const handleRegionChange = useCallback((region: Region) => {
+    setCurrentZoom(region.latitudeDelta);
+  }, []);
+
+  // Route planner functions
+  const addToRoute = useCallback((item: Vendor | Listing | Job, type: "vendor" | "listing" | "job") => {
+    let coords: { latitude: number; longitude: number } | undefined;
+    let name = "";
+    let id = "";
+
+    if (type === "vendor") {
+      const vendor = item as Vendor;
+      coords = vendor.location?.coordinates;
+      name = vendor.name;
+      id = `vendor-${vendor.id}`;
+    } else if (type === "listing") {
+      const listing = item as Listing;
+      coords = listing.coordinates;
+      name = listing.title;
+      id = `listing-${listing.id}`;
+    } else {
+      const job = item as Job;
+      coords = job.coordinates;
+      name = job.title;
+      id = `job-${job.id}`;
+    }
+
+    if (!coords) return;
+
+    // Don't add duplicates
+    if (routeStops.find(s => s.id === id)) return;
+
+    setRouteStops(prev => [...prev, { id, name, coordinates: coords!, type }]);
+  }, [routeStops]);
+
+  const removeFromRoute = useCallback((stopId: string) => {
+    setRouteStops(prev => prev.filter(s => s.id !== stopId));
+  }, []);
+
+  const clearRoute = useCallback(() => {
+    setRouteStops([]);
+    setRouteMode(false);
+  }, []);
+
+  const openRouteInMaps = useCallback(() => {
+    if (routeStops.length === 0) return;
+
+    // Build Google Maps URL with multiple waypoints
+    let url = "https://www.google.com/maps/dir/";
+
+    // Add current location as start
+    if (userLocation) {
+      url += `${userLocation.latitude},${userLocation.longitude}/`;
+    }
+
+    // Add all stops
+    routeStops.forEach((stop, i) => {
+      url += `${stop.coordinates.latitude},${stop.coordinates.longitude}`;
+      if (i < routeStops.length - 1) url += "/";
+    });
+
+    Linking.openURL(url);
+  }, [routeStops, userLocation]);
+
+  // Calculate total route distance
+  const routeDistance = useMemo(() => {
+    if (routeStops.length < 2) return 0;
+
+    let total = 0;
+    for (let i = 0; i < routeStops.length - 1; i++) {
+      total += calculateDistance(
+        routeStops[i].coordinates.latitude,
+        routeStops[i].coordinates.longitude,
+        routeStops[i + 1].coordinates.latitude,
+        routeStops[i + 1].coordinates.longitude
+      );
+    }
+    return total;
+  }, [routeStops]);
+
+  // Generate route polyline coordinates
+  const routeCoordinates = useMemo(() => {
+    if (routeStops.length < 2) return [];
+
+    const coords: Array<{ latitude: number; longitude: number }> = [];
+
+    // Optionally add user location as start
+    if (userLocation && routeStops.length > 0) {
+      coords.push({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      });
+    }
+
+    // Add all stops
+    routeStops.forEach(stop => {
+      coords.push(stop.coordinates);
+    });
+
+    return coords;
+  }, [routeStops, userLocation]);
+
+  // Handle cluster tap - zoom in to show items
+  const handleClusterPress = useCallback((cluster: MapCluster) => {
+    if (mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+        latitudeDelta: currentZoom / 3, // Zoom in
+        longitudeDelta: currentZoom / 3,
+      }, 500);
+    }
+    setSelectedCluster(cluster);
+  }, [currentZoom]);
+
   // Compact Preview Cards (Google Maps style - appear above marker)
-  const VendorPreviewCard = ({ vendor }: { vendor: Vendor }) => (
-    <Pressable 
-      style={styles.previewCard}
-      onPress={() => {
-        // Show full detail card
-        setShowFullCard(true);
-      }}
-    >
-      <View style={styles.previewCardContent}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.previewTitle} numberOfLines={1}>{vendor.name}</Text>
-          <View style={styles.previewMeta}>
-            <View style={styles.previewStars}>
-              <Ionicons name="star" size={12} color="#f59e0b" />
-              <Text style={styles.previewRating}>{vendor.rating}</Text>
+  const VendorPreviewCard = ({ vendor }: { vendor: Vendor }) => {
+    const vendorOpen = isVendorOpen(vendor);
+    const isInRoute = routeStops.some(s => s.id === `vendor-${vendor.id}`);
+
+    return (
+      <View style={styles.previewCard}>
+        <Pressable
+          style={styles.previewCardContent}
+          onPress={() => setShowFullCard(true)}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={styles.previewTitleRow}>
+              <Text style={styles.previewTitle} numberOfLines={1}>{vendor.name}</Text>
+              {vendorOpen && (
+                <View style={styles.openBadge}>
+                  <Text style={styles.openBadgeText}>Open</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.previewType}>{VENDOR_TYPE_LABELS[vendor.type]}</Text>
+            <View style={styles.previewMeta}>
+              <View style={styles.previewStars}>
+                <Ionicons name="star" size={12} color="#f59e0b" />
+                <Text style={styles.previewRating}>{vendor.rating}</Text>
+              </View>
+              <Text style={styles.previewType}>{VENDOR_TYPE_LABELS[vendor.type]}</Text>
+            </View>
           </View>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
-      </View>
-    </Pressable>
-  );
+          <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+        </Pressable>
 
-  const ListingPreviewCard = ({ listing }: { listing: Listing }) => (
-    <Pressable 
-      style={styles.previewCard}
-      onPress={() => {
-        setShowFullCard(true);
-      }}
-    >
-      <View style={styles.previewCardContent}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.previewTitle} numberOfLines={1}>{listing.title}</Text>
-          <View style={styles.previewMeta}>
-            <Text style={styles.previewPrice}>${listing.price}</Text>
-            <Text style={styles.previewType}>{listing.stoneType}</Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
-      </View>
-    </Pressable>
-  );
-
-  const JobPreviewCard = ({ job }: { job: Job }) => (
-    <Pressable 
-      style={styles.previewCard}
-      onPress={() => {
-        setShowFullCard(true);
-      }}
-    >
-      <View style={styles.previewCardContent}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.previewTitle} numberOfLines={1}>{job.title}</Text>
-          <View style={styles.previewMeta}>
-            <Text style={styles.previewPrice}>
-              {job.budget ? `$${job.budget.min}-$${job.budget.max}` : "TBD"}
+        {/* Route mode: Add to route button */}
+        {routeMode && (
+          <Pressable
+            style={[styles.addToRouteButton, isInRoute && styles.addToRouteButtonActive]}
+            onPress={() => {
+              if (isInRoute) {
+                removeFromRoute(`vendor-${vendor.id}`);
+              } else {
+                addToRoute(vendor, "vendor");
+              }
+            }}
+          >
+            <Ionicons
+              name={isInRoute ? "checkmark-circle" : "add-circle"}
+              size={18}
+              color={isInRoute ? "#10b981" : colors.primary[600]}
+            />
+            <Text style={[styles.addToRouteText, isInRoute && styles.addToRouteTextActive]}>
+              {isInRoute ? "In Route" : "Add to Route"}
             </Text>
-            <Text style={styles.previewType}>{job.bidCount} bids</Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+          </Pressable>
+        )}
       </View>
-    </Pressable>
-  );
+    );
+  };
+
+  const ListingPreviewCard = ({ listing }: { listing: Listing }) => {
+    const isInRoute = routeStops.some(s => s.id === `listing-${listing.id}`);
+
+    return (
+      <View style={styles.previewCard}>
+        <Pressable
+          style={styles.previewCardContent}
+          onPress={() => setShowFullCard(true)}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.previewTitle} numberOfLines={1}>{listing.title}</Text>
+            <View style={styles.previewMeta}>
+              <Text style={styles.previewPrice}>${listing.price}</Text>
+              <Text style={styles.previewType}>{listing.stoneType}</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+        </Pressable>
+
+        {/* Quick actions for listings */}
+        <View style={styles.previewQuickActions}>
+          {/* Near This Listing button */}
+          <Pressable
+            style={[styles.nearbyButton, showNearbyVendors && styles.nearbyButtonActive]}
+            onPress={() => setShowNearbyVendors(!showNearbyVendors)}
+          >
+            <Ionicons
+              name="location"
+              size={16}
+              color={showNearbyVendors ? "#ffffff" : colors.accent[500]}
+            />
+            <Text style={[styles.nearbyButtonText, showNearbyVendors && styles.nearbyButtonTextActive]}>
+              {showNearbyVendors ? "Hide Nearby" : "Near This"}
+            </Text>
+          </Pressable>
+
+          {/* Route mode: Add to route button */}
+          {routeMode && (
+            <Pressable
+              style={[styles.addToRouteButton, isInRoute && styles.addToRouteButtonActive]}
+              onPress={() => {
+                if (isInRoute) {
+                  removeFromRoute(`listing-${listing.id}`);
+                } else {
+                  addToRoute(listing, "listing");
+                }
+              }}
+            >
+              <Ionicons
+                name={isInRoute ? "checkmark-circle" : "add-circle"}
+                size={16}
+                color={isInRoute ? "#10b981" : colors.primary[600]}
+              />
+              <Text style={[styles.addToRouteText, isInRoute && styles.addToRouteTextActive]}>
+                {isInRoute ? "In Route" : "Add"}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const JobPreviewCard = ({ job }: { job: Job }) => {
+    const isInRoute = routeStops.some(s => s.id === `job-${job.id}`);
+
+    return (
+      <View style={styles.previewCard}>
+        <Pressable
+          style={styles.previewCardContent}
+          onPress={() => setShowFullCard(true)}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.previewTitle} numberOfLines={1}>{job.title}</Text>
+            <View style={styles.previewMeta}>
+              <Text style={styles.previewPrice}>
+                {job.budget ? `$${job.budget.min}-$${job.budget.max}` : "TBD"}
+              </Text>
+              <Text style={styles.previewType}>{job.bidCount} bids</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+        </Pressable>
+
+        {/* Route mode: Add to route button */}
+        {routeMode && (
+          <Pressable
+            style={[styles.addToRouteButton, isInRoute && styles.addToRouteButtonActive]}
+            onPress={() => {
+              if (isInRoute) {
+                removeFromRoute(`job-${job.id}`);
+              } else {
+                addToRoute(job, "job");
+              }
+            }}
+          >
+            <Ionicons
+              name={isInRoute ? "checkmark-circle" : "add-circle"}
+              size={18}
+              color={isInRoute ? "#10b981" : colors.primary[600]}
+            />
+            <Text style={[styles.addToRouteText, isInRoute && styles.addToRouteTextActive]}>
+              {isInRoute ? "In Route" : "Add to Route"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  };
 
   const VendorDetailCard = ({ vendor }: { vendor: Vendor }) => {
     const isFavorite = favoriteVendorIds.includes(vendor.id);
@@ -1133,15 +1664,34 @@ export default function MapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={{
-          latitude: 33.6369,
-          longitude: -112.3652,
-          latitudeDelta: 0.15,  // ~5 mile radius view
-          longitudeDelta: 0.15,
-        }}
+        initialRegion={mapRegion}
         showsUserLocation
         showsMyLocationButton={false}
+        onRegionChangeComplete={handleRegionChange}
+        followsUserLocation={false}
       >
+        {/* Route Polyline */}
+        {routeMode && routeCoordinates.length >= 2 && (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeColor={colors.primary[600]}
+            strokeWidth={4}
+            lineDashPattern={[10, 5]}
+          />
+        )}
+
+        {/* Route Stop Markers */}
+        {routeMode && routeStops.map((stop, index) => (
+          <Marker
+            key={stop.id}
+            coordinate={stop.coordinates}
+          >
+            <View style={styles.routeStopMarker}>
+              <Text style={styles.routeStopNumber}>{index + 1}</Text>
+            </View>
+          </Marker>
+        ))}
+
         {/* Vendor Markers */}
         {filteredVendors.map((vendor) => (
           <VendorMarker
@@ -1169,6 +1719,16 @@ export default function MapScreen() {
             job={job}
             isSelected={selectedJob?.id === job.id}
             onPress={() => handleJobMarkerPress(job)}
+          />
+        ))}
+
+        {/* My Project Markers */}
+        {showMyProjects && myProjects.map((project) => (
+          <ProjectMarker
+            key={`project-${project.id}`}
+            project={project}
+            isSelected={selectedProject?.id === project.id}
+            onPress={() => handleProjectMarkerPress(project)}
           />
         ))}
       </MapView>
@@ -1305,20 +1865,63 @@ export default function MapScreen() {
               </View>
             )}
 
+            {/* Quick Filter Chips */}
+            <View style={styles.quickFilterRow}>
+              {/* Open Now Toggle */}
+              <Pressable
+                style={[styles.quickFilterChip, showOpenOnly && styles.quickFilterChipActive]}
+                onPress={() => setShowOpenOnly(!showOpenOnly)}
+              >
+                <Ionicons
+                  name="time"
+                  size={16}
+                  color={showOpenOnly ? "#ffffff" : "#10b981"}
+                />
+                <Text style={[styles.quickFilterChipText, showOpenOnly && styles.quickFilterChipTextActive]}>
+                  Open Now
+                </Text>
+                {showOpenOnly && (
+                  <Text style={styles.quickFilterCount}>{openVendorCount}</Text>
+                )}
+              </Pressable>
+
+              {/* Route Planner Toggle */}
+              <Pressable
+                style={[styles.quickFilterChip, routeMode && styles.quickFilterChipActiveRoute]}
+                onPress={() => setRouteMode(!routeMode)}
+              >
+                <Ionicons
+                  name="navigate"
+                  size={16}
+                  color={routeMode ? "#ffffff" : colors.primary[600]}
+                />
+                <Text style={[styles.quickFilterChipText, routeMode && styles.quickFilterChipTextActive]}>
+                  Route
+                </Text>
+                {routeStops.length > 0 && (
+                  <View style={[styles.routeStopsBadge, routeMode && styles.routeStopsBadgeActive]}>
+                    <Text style={[styles.routeStopsBadgeText, routeMode && styles.routeStopsBadgeTextActive]}>
+                      {routeStops.length}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
+
             {/* Compact Filter Row */}
             <View style={styles.compactFilterRow}>
-              <Pressable 
+              <Pressable
                 style={styles.categoriesToggle}
                 onPress={() => setShowCategoryFilters(!showCategoryFilters)}
               >
                 <Ionicons name="options" size={18} color={colors.text.secondary} />
                 <Text style={styles.categoriesToggleText}>Filters</Text>
-                <Ionicons 
-                  name={showCategoryFilters ? "chevron-up" : "chevron-down"} 
-                  size={16} 
-                  color={colors.text.tertiary} 
+                <Ionicons
+                  name={showCategoryFilters ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={colors.text.tertiary}
                 />
-                {(selectedTypes.length > 0 || !showVendors || !showListings || !showJobs) && (
+                {(selectedTypes.length > 0 || !showVendors || !showListings || !showJobs || showOpenOnly) && (
                   <View style={styles.activeFilterBadge}>
                     <Text style={styles.activeFilterBadgeText}>●</Text>
                   </View>
@@ -1341,6 +1944,67 @@ export default function MapScreen() {
           <Ionicons name="locate" size={24} color={colors.primary[600]} />
         </BlurView>
       </Pressable>
+
+      {/* Route Planner Panel */}
+      {routeMode && (
+        <View style={styles.routePlannerPanel}>
+          <BlurView intensity={95} style={styles.routePlannerContent} tint="light">
+            <View style={styles.routePlannerHeader}>
+              <View>
+                <Text style={styles.routePlannerTitle}>Route Planner</Text>
+                <Text style={styles.routePlannerSubtitle}>
+                  {routeStops.length === 0
+                    ? "Tap markers to add stops"
+                    : `${routeStops.length} stop${routeStops.length > 1 ? "s" : ""} • ${routeDistance.toFixed(1)} mi`}
+                </Text>
+              </View>
+              <Pressable onPress={clearRoute}>
+                <Ionicons name="close-circle" size={28} color={colors.text.tertiary} />
+              </Pressable>
+            </View>
+
+            {routeStops.length > 0 && (
+              <ScrollView style={styles.routeStopsList} showsVerticalScrollIndicator={false}>
+                {routeStops.map((stop, index) => (
+                  <View key={stop.id} style={styles.routeStopItem}>
+                    <View style={styles.routeStopNumber}>
+                      <Text style={styles.routeStopNumberText}>{index + 1}</Text>
+                    </View>
+                    <Text style={styles.routeStopName} numberOfLines={1}>
+                      {stop.name}
+                    </Text>
+                    <Pressable onPress={() => removeFromRoute(stop.id)}>
+                      <Ionicons name="remove-circle" size={22} color={colors.error.main} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            {routeStops.length >= 1 && (
+              <Pressable style={styles.routeStartButton} onPress={openRouteInMaps}>
+                <Ionicons name="navigate" size={20} color="#ffffff" />
+                <Text style={styles.routeStartButtonText}>Open in Maps</Text>
+              </Pressable>
+            )}
+          </BlurView>
+        </View>
+      )}
+
+      {/* Near This Listing indicator */}
+      {showNearbyVendors && selectedListing && (
+        <View style={styles.nearbyIndicator}>
+          <BlurView intensity={95} style={styles.nearbyIndicatorContent} tint="light">
+            <Ionicons name="location" size={18} color={colors.accent[500]} />
+            <Text style={styles.nearbyIndicatorText}>
+              Showing vendors within {nearbyRadius} mi of listing
+            </Text>
+            <Pressable onPress={() => setShowNearbyVendors(false)}>
+              <Ionicons name="close" size={18} color={colors.text.tertiary} />
+            </Pressable>
+          </BlurView>
+        </View>
+      )}
 
       {/* Results Carousel - Show when there are search results or selections */}
       {/* Preview Cards - Small cards (Google Maps style) */}
@@ -1495,6 +2159,32 @@ const styles = StyleSheet.create({
   remnantBadgeText: {
     fontSize: 10,
     fontWeight: "800",
+    color: "white",
+  },
+  projectMarker: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  myProjectBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    backgroundColor: "#6366f1",
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "white",
     color: "white",
   },
   jobMarker: {
@@ -2034,5 +2724,262 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: colors.text.tertiary,
+  },
+
+  // New styles for map enhancements
+
+  // Quick filter row
+  quickFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  quickFilterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.background.secondary,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border.main,
+  },
+  quickFilterChipActive: {
+    backgroundColor: "#10b981",
+    borderColor: "#10b981",
+  },
+  quickFilterChipActiveRoute: {
+    backgroundColor: colors.primary[600],
+    borderColor: colors.primary[600],
+  },
+  quickFilterChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text.secondary,
+  },
+  quickFilterChipTextActive: {
+    color: "#ffffff",
+  },
+  quickFilterCount: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginLeft: 2,
+  },
+
+  // Route badges
+  routeStopsBadge: {
+    backgroundColor: colors.primary[100],
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 4,
+  },
+  routeStopsBadgeActive: {
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  routeStopsBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primary[600],
+  },
+  routeStopsBadgeTextActive: {
+    color: "#ffffff",
+  },
+
+  // Route planner panel
+  routePlannerPanel: {
+    position: "absolute",
+    bottom: 100,
+    left: 16,
+    right: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  routePlannerContent: {
+    padding: 16,
+  },
+  routePlannerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  routePlannerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text.primary,
+  },
+  routePlannerSubtitle: {
+    fontSize: 13,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  routeStopsList: {
+    maxHeight: 150,
+    marginBottom: 12,
+  },
+  routeStopItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.main,
+  },
+  routeStopMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary[600],
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  routeStopNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary[600],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  routeStopNumberText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  routeStopName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text.primary,
+  },
+  routeStartButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary[600],
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  routeStartButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+
+  // Open badge
+  previewTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  openBadge: {
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  openBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#10b981",
+    textTransform: "uppercase",
+  },
+
+  // Add to route button
+  addToRouteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 10,
+    backgroundColor: colors.primary[50],
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  addToRouteButtonActive: {
+    backgroundColor: "#dcfce7",
+    borderColor: "#10b981",
+  },
+  addToRouteText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.primary[600],
+  },
+  addToRouteTextActive: {
+    color: "#10b981",
+  },
+
+  // Preview quick actions
+  previewQuickActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+
+  // Near This button
+  nearbyButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: colors.accent[100],
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.accent[200],
+  },
+  nearbyButtonActive: {
+    backgroundColor: colors.accent[500],
+    borderColor: colors.accent[500],
+  },
+  nearbyButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.accent[600],
+  },
+  nearbyButtonTextActive: {
+    color: "#ffffff",
+  },
+
+  // Nearby indicator
+  nearbyIndicator: {
+    position: "absolute",
+    top: 180,
+    left: 16,
+    right: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  nearbyIndicatorContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  nearbyIndicatorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.text.secondary,
   },
 });

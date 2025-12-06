@@ -8,18 +8,32 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
+      "resizeMode": "contain",
       "backgroundColor": "#2563eb"
     },
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.surprisegranite.remodely",
+      "bundleIdentifier": "com.remodelyllc.remodely",
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "com.googleusercontent.apps.254256003480-1da758ce6na2pr5j45qnc771t01kdem9"
+        }
+      },
       "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.254256003480-1da758ce6na2pr5j45qnc771t01kdem9"
+            ]
+          }
+        ],
         "NSCameraUsageDescription": "Remodely needs camera access to photograph remodeling materials",
         "NSLocationWhenInUseUsageDescription": "Remodely uses location to show nearby vendors and listings",
         "NSPhotoLibraryUsageDescription": "Remodely needs photo library access to select images for listings",
+        "NSCalendarsUsageDescription": "Remodely needs calendar access to schedule appointments",
+        "NSCalendarsFullAccessUsageDescription": "Remodely needs full calendar access to manage your appointments",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "Remodely needs calendar access to add appointments",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -29,7 +43,7 @@
         "backgroundColor": "#2563eb"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.surprisegranite.remodely",
+      "package": "com.remodelyllc.remodely",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -44,9 +58,10 @@
       "expo-location",
       "expo-image-picker",
       [
-        "react-native-maps",
+        "expo-calendar",
         {
-          "googleMapsApiKey": "AIzaSyCi_IzEpOoXKyljdDU4bRZFmdil_vZpAGI"
+          "calendarPermission": "Remodely needs calendar access to schedule appointments",
+          "remindersPermission": "Remodely needs reminders access to manage your appointments"
         }
       ]
     ],

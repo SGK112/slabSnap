@@ -1,31 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Background for adaptive icon foreground -->
-  <rect width="1024" height="1024" fill="#0D9488"/>
+  <!-- Blue background (Google blue) -->
+  <rect width="1024" height="1024" fill="#4285F4"/>
 
-  <!-- Remodely Logo: House with location pin (white on teal) -->
+  <!-- Subtle shadow for depth -->
+  <path d="M 512 215 L 210 490 L 290 490 L 290 810 L 754 810 L 754 490 L 834 490 Z"
+        fill="#3367D6" opacity="0.4"/>
 
-  <!-- House shape -->
-  <g fill="#ffffff">
-    <!-- Roof -->
-    <path d="M 512 160 L 200 420 L 260 420 L 260 380 L 512 180 L 764 380 L 764 420 L 824 420 Z"/>
+  <!-- House shape - white -->
+  <path d="M 512 200 L 200 480 L 280 480 L 280 800 L 744 800 L 744 480 L 824 480 Z"
+        fill="#ffffff"/>
 
-    <!-- House body -->
-    <rect x="280" y="420" width="464" height="400" rx="15"/>
-  </g>
+  <!-- Chimney -->
+  <rect x="620" y="280" width="60" height="120" rx="4" fill="#ffffff"/>
 
-  <!-- Door cutout (teal) -->
-  <rect x="432" y="550" width="160" height="270" rx="10" fill="#0D9488"/>
+  <!-- Door -->
+  <rect x="452" y="580" width="120" height="220" rx="8" fill="#4285F4"/>
 
-  <!-- Window left (teal) -->
-  <rect x="320" y="480" width="90" height="90" rx="8" fill="#0D9488"/>
+  <!-- Door knob -->
+  <circle cx="540" cy="700" r="12" fill="#ffffff"/>
 
-  <!-- Window right (teal) -->
-  <rect x="614" y="480" width="90" height="90" rx="8" fill="#0D9488"/>
+  <!-- Window left -->
+  <rect x="310" y="520" width="100" height="100" rx="6" fill="#4285F4"/>
 
-  <!-- Location pin inside door -->
-  <g transform="translate(512, 660)">
-    <path d="M 0 -60 C -30 -60 -50 -40 -50 -15 C -50 20 0 60 0 60 C 0 60 50 20 50 -15 C 50 -40 30 -60 0 -60 Z"
-          fill="#ffffff" stroke="none"/>
-    <circle cx="0" cy="-20" r="18" fill="#0D9488"/>
-  </g>
+  <!-- Window right -->
+  <rect x="614" y="520" width="100" height="100" rx="6" fill="#4285F4"/>
+
+  <!-- Window panes - left -->
+  <line x1="360" y1="520" x2="360" y2="620" stroke="#ffffff" stroke-width="4"/>
+  <line x1="310" y1="570" x2="410" y2="570" stroke="#ffffff" stroke-width="4"/>
+
+  <!-- Window panes - right -->
+  <line x1="664" y1="520" x2="664" y2="620" stroke="#ffffff" stroke-width="4"/>
+  <line x1="614" y1="570" x2="714" y2="570" stroke="#ffffff" stroke-width="4"/>
 </svg>
