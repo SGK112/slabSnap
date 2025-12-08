@@ -37,8 +37,16 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Parsing
-app.use(express.json({ limit: '10mb' }));
+// Parsing - with raw body preserved for Shopify webhook verification
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    // Store raw body for Shopify webhook HMAC verification
+    if (req.originalUrl.includes('/api/shopify/webhooks')) {
+      req.rawBody = buf.toString();
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Logging

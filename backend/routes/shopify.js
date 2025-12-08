@@ -1,5 +1,10 @@
 /**
- * Shopify Routes - OAuth and API proxy
+ * Shopify Routes - OAuth, API proxy, and Webhooks
+ *
+ * Required for Shopify App Store approval:
+ * - HMAC validation for OAuth callbacks
+ * - GDPR webhooks (customers/data_request, customers/redact, shop/redact)
+ * - App uninstall webhook
  */
 
 import express from 'express';
@@ -11,6 +16,76 @@ const router = express.Router();
 
 // In-memory state storage (use Redis in production)
 const pendingStates = new Map();
+
+/**
+ * Verify Shopify HMAC signature
+ * Required for OAuth callback and webhook validation
+ */
+function verifyHmac(query, secret) {
+  const { hmac, signature, ...params } = query;
+
+  if (!hmac) return false;
+
+  // Sort and encode parameters
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map(key => `${key}=${params[key]}`)
+    .join('&');
+
+  const calculatedHmac = crypto
+    .createHmac('sha256', secret)
+    .update(sortedParams)
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(hmac, 'hex'),
+    Buffer.from(calculatedHmac, 'hex')
+  );
+}
+
+/**
+ * Verify Shopify webhook signature
+ */
+function verifyWebhookHmac(body, hmacHeader, secret) {
+  if (!hmacHeader) return false;
+
+  const calculatedHmac = crypto
+    .createHmac('sha256', secret)
+    .update(body, 'utf8')
+    .digest('base64');
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(hmacHeader, 'base64'),
+      Buffer.from(calculatedHmac, 'base64')
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Middleware to verify Shopify webhook requests
+ */
+function verifyShopifyWebhook(req, res, next) {
+  const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
+  const secret = process.env.SHOPIFY_CLIENT_SECRET;
+
+  if (!secret) {
+    console.error('SHOPIFY_CLIENT_SECRET not configured');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  // Get raw body for verification
+  const rawBody = req.rawBody || JSON.stringify(req.body);
+
+  if (!verifyWebhookHmac(rawBody, hmacHeader, secret)) {
+    console.error('Invalid webhook signature');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  next();
+}
 
 /**
  * GET /api/shopify/auth/url
@@ -79,6 +154,22 @@ router.get('/auth/callback', async (req, res) => {
       return res.status(400).send(errorHtml('Missing required parameters'));
     }
 
+    // Verify HMAC signature (required for Shopify App Store approval)
+    const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
+    if (hmac && clientSecret) {
+      const isValidHmac = verifyHmac(req.query, clientSecret);
+      if (!isValidHmac) {
+        console.error('Invalid HMAC signature in OAuth callback');
+        return res.status(400).send(errorHtml('Invalid request signature. Please try again.'));
+      }
+    }
+
+    // Validate shop domain format (security check)
+    const shopRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
+    if (!shopRegex.test(shop)) {
+      return res.status(400).send(errorHtml('Invalid shop domain'));
+    }
+
     // Verify state
     const pendingState = pendingStates.get(state);
     if (!pendingState || Date.now() > pendingState.expiresAt) {
@@ -91,7 +182,6 @@ router.get('/auth/callback', async (req, res) => {
 
     // Exchange code for access token
     const clientId = process.env.SHOPIFY_CLIENT_ID;
-    const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
 
     const tokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
       method: 'POST',
@@ -225,6 +315,145 @@ router.get('/products', protect, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/shopify/import-product
+ * Import a Shopify product to Remodely listing
+ */
+router.post('/import-product', protect, async (req, res) => {
+  try {
+    const { shopifyProductId, listing } = req.body;
+    const user = await User.findById(req.user.userId);
+
+    if (!user?.shopify?.connected) {
+      return res.status(400).json({ error: 'Shopify not connected' });
+    }
+
+    // If listing is provided from client, just acknowledge it
+    // The listing is already stored in the client's local state
+    if (listing) {
+      console.log(`Product ${shopifyProductId} imported as listing ${listing.id}`);
+      return res.json({
+        success: true,
+        listingId: listing.id,
+        message: 'Product imported successfully',
+      });
+    }
+
+    // If only ID is provided, fetch the product from Shopify and create listing
+    const productResponse = await fetch(
+      `https://${user.shopify.storeDomain}/admin/api/2024-01/products/${shopifyProductId}.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': user.shopify.accessToken,
+        },
+      }
+    );
+
+    if (!productResponse.ok) {
+      throw new Error('Failed to fetch product from Shopify');
+    }
+
+    const { product } = await productResponse.json();
+
+    // Create a basic listing from the Shopify product
+    const listingId = `shopify-${product.id}`;
+    const firstVariant = product.variants?.[0] || {};
+
+    const newListing = {
+      id: listingId,
+      shopifyProductId: product.id,
+      sellerId: user._id.toString(),
+      sellerName: user.businessName || user.name || 'Store',
+      sellerRating: user.rating || 5.0,
+      title: product.title,
+      description: product.body_html?.replace(/<[^>]*>/g, '') || '',
+      category: 'Stone & Tile', // Default category
+      listingType: product.product_type?.toLowerCase().includes('remnant') ? 'Remnant' : 'Slab',
+      price: parseFloat(firstVariant.price) || 0,
+      images: (product.images || []).map(img => img.src),
+      location: user.location || 'Surprise, AZ',
+      status: product.status === 'active' ? 'active' : 'archived',
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      views: 0,
+      brand: product.vendor,
+    };
+
+    res.json({
+      success: true,
+      listingId,
+      listing: newListing,
+    });
+  } catch (error) {
+    console.error('Import product error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/shopify/import-all
+ * Import all products from Shopify to Remodely
+ */
+router.post('/import-all', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user?.shopify?.connected) {
+      return res.status(400).json({ error: 'Shopify not connected' });
+    }
+
+    // Fetch all products from Shopify
+    const response = await fetch(
+      `https://${user.shopify.storeDomain}/admin/api/2024-01/products.json?limit=250`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': user.shopify.accessToken,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch products from Shopify');
+    }
+
+    const { products } = await response.json();
+    const listings = [];
+
+    for (const product of products) {
+      const firstVariant = product.variants?.[0] || {};
+      const listing = {
+        id: `shopify-${product.id}`,
+        shopifyProductId: product.id,
+        sellerId: user._id.toString(),
+        sellerName: user.businessName || user.name || 'Store',
+        sellerRating: user.rating || 5.0,
+        title: product.title,
+        description: product.body_html?.replace(/<[^>]*>/g, '') || '',
+        category: 'Stone & Tile',
+        listingType: product.product_type?.toLowerCase().includes('remnant') ? 'Remnant' : 'Slab',
+        price: parseFloat(firstVariant.price) || 0,
+        images: (product.images || []).map(img => img.src),
+        location: user.location || 'Surprise, AZ',
+        status: product.status === 'active' ? 'active' : 'archived',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+        views: 0,
+        brand: product.vendor,
+      };
+      listings.push(listing);
+    }
+
+    res.json({
+      success: true,
+      imported: listings.length,
+      listings,
+    });
+  } catch (error) {
+    console.error('Import all products error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // HTML templates for OAuth callback
 const successHtml = (storeName) => `
 <!DOCTYPE html>
@@ -321,5 +550,186 @@ const errorHtml = (message) => `
 </body>
 </html>
 `;
+
+// ============================================
+// SHOPIFY WEBHOOKS (Required for App Store approval)
+// ============================================
+
+/**
+ * POST /api/shopify/webhooks/app-uninstalled
+ * Called when a merchant uninstalls the app
+ * Must clean up all merchant data
+ */
+router.post('/webhooks/app-uninstalled', verifyShopifyWebhook, async (req, res) => {
+  try {
+    const shopDomain = req.get('X-Shopify-Shop-Domain');
+    console.log(`App uninstalled webhook received for shop: ${shopDomain}`);
+
+    if (shopDomain) {
+      // Find and clean up all users connected to this shop
+      const result = await User.updateMany(
+        { 'shopify.storeDomain': shopDomain },
+        { $unset: { shopify: 1 } }
+      );
+      console.log(`Cleaned up ${result.modifiedCount} user(s) for shop: ${shopDomain}`);
+    }
+
+    // Shopify expects a 200 response within 5 seconds
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('App uninstalled webhook error:', error);
+    // Still return 200 to prevent Shopify from retrying
+    res.status(200).json({ success: true, error: error.message });
+  }
+});
+
+/**
+ * POST /api/shopify/webhooks/customers-data-request
+ * GDPR: Customer requests their data
+ * Shopify sends this when a customer requests their data under GDPR
+ */
+router.post('/webhooks/customers-data-request', verifyShopifyWebhook, async (req, res) => {
+  try {
+    const { shop_domain, customer, orders_requested } = req.body;
+    console.log(`Customer data request received for shop: ${shop_domain}`);
+
+    // Log the request for compliance
+    console.log('GDPR Data Request:', {
+      shopDomain: shop_domain,
+      customerId: customer?.id,
+      customerEmail: customer?.email,
+      ordersRequested: orders_requested,
+      timestamp: new Date().toISOString(),
+    });
+
+    // In a full implementation, you would:
+    // 1. Gather all customer data from your database
+    // 2. Send it to the shop owner or directly to the customer
+    // For now, we acknowledge the request
+
+    res.status(200).json({
+      success: true,
+      message: 'Data request received and logged',
+    });
+  } catch (error) {
+    console.error('Customer data request webhook error:', error);
+    res.status(200).json({ success: true });
+  }
+});
+
+/**
+ * POST /api/shopify/webhooks/customers-redact
+ * GDPR: Request to delete customer data
+ * Must delete all customer personal data within 30 days
+ */
+router.post('/webhooks/customers-redact', verifyShopifyWebhook, async (req, res) => {
+  try {
+    const { shop_domain, customer, orders_to_redact } = req.body;
+    console.log(`Customer redact request received for shop: ${shop_domain}`);
+
+    // Log the redaction request for compliance
+    console.log('GDPR Customer Redact:', {
+      shopDomain: shop_domain,
+      customerId: customer?.id,
+      customerEmail: customer?.email,
+      ordersToRedact: orders_to_redact,
+      timestamp: new Date().toISOString(),
+    });
+
+    // In a full implementation, you would:
+    // 1. Delete all personal data for this customer from your database
+    // 2. Remove from any analytics or logs
+    // 3. Document the deletion for compliance
+
+    // For Remodely, we don't store customer data from Shopify stores
+    // We only store the store owner's connection info
+
+    res.status(200).json({
+      success: true,
+      message: 'Customer data redaction request acknowledged',
+    });
+  } catch (error) {
+    console.error('Customer redact webhook error:', error);
+    res.status(200).json({ success: true });
+  }
+});
+
+/**
+ * POST /api/shopify/webhooks/shop-redact
+ * GDPR: Request to delete all shop data
+ * Called 48 hours after app uninstall - must delete ALL shop data
+ */
+router.post('/webhooks/shop-redact', verifyShopifyWebhook, async (req, res) => {
+  try {
+    const { shop_domain, shop_id } = req.body;
+    console.log(`Shop redact request received for shop: ${shop_domain}`);
+
+    // Log the redaction for compliance
+    console.log('GDPR Shop Redact:', {
+      shopDomain: shop_domain,
+      shopId: shop_id,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (shop_domain) {
+      // Delete all data associated with this shop
+      const result = await User.updateMany(
+        { 'shopify.storeDomain': shop_domain },
+        { $unset: { shopify: 1 } }
+      );
+      console.log(`Redacted data for ${result.modifiedCount} user(s) from shop: ${shop_domain}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Shop data redaction completed',
+    });
+  } catch (error) {
+    console.error('Shop redact webhook error:', error);
+    res.status(200).json({ success: true });
+  }
+});
+
+/**
+ * POST /api/shopify/webhooks/products-update
+ * Optional: Sync product updates from Shopify
+ */
+router.post('/webhooks/products-update', verifyShopifyWebhook, async (req, res) => {
+  try {
+    const shopDomain = req.get('X-Shopify-Shop-Domain');
+    const product = req.body;
+
+    console.log(`Product update webhook for shop: ${shopDomain}, product: ${product.id}`);
+
+    // In a full implementation, you would update the corresponding listing
+    // For now, we just acknowledge
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Products update webhook error:', error);
+    res.status(200).json({ success: true });
+  }
+});
+
+/**
+ * POST /api/shopify/webhooks/products-delete
+ * Optional: Handle product deletion from Shopify
+ */
+router.post('/webhooks/products-delete', verifyShopifyWebhook, async (req, res) => {
+  try {
+    const shopDomain = req.get('X-Shopify-Shop-Domain');
+    const { id } = req.body;
+
+    console.log(`Product delete webhook for shop: ${shopDomain}, product: ${id}`);
+
+    // In a full implementation, you would remove or archive the corresponding listing
+    // For now, we just acknowledge
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Products delete webhook error:', error);
+    res.status(200).json({ success: true });
+  }
+});
 
 export default router;
