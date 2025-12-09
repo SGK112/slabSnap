@@ -716,6 +716,377 @@ router.delete('/listing/:id', protect, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/shopify/export-listing
+ * Export a Remodely listing to Shopify
+ */
+router.post('/export-listing', protect, async (req, res) => {
+  try {
+    const { listingId } = req.body;
+    const user = await User.findById(req.user.userId);
+
+    if (!user?.shopify?.connected) {
+      return res.status(400).json({ error: 'Shopify not connected' });
+    }
+
+    // Fetch the listing from database
+    const listingResult = await pool.query(
+      'SELECT * FROM listings WHERE id = $1 AND seller_id = $2',
+      [listingId, user._id]
+    );
+
+    if (listingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    const listing = listingResult.rows[0];
+
+    // Create product in Shopify
+    const productData = {
+      product: {
+        title: listing.title,
+        body_html: listing.description || '',
+        vendor: listing.brand || user.businessName || 'Remodely',
+        product_type: listing.listing_type || 'Slab',
+        status: listing.status === 'active' ? 'active' : 'draft',
+        variants: [{
+          price: listing.price?.toString() || '0',
+          sku: listing.sku || `REM-${listing.id}`,
+          inventory_quantity: listing.inventory_quantity || 1,
+          inventory_management: 'shopify',
+        }],
+        images: (listing.images || []).map(src => ({ src })),
+      },
+    };
+
+    const response = await fetch(
+      `https://${user.shopify.storeDomain}/admin/api/2024-01/products.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': user.shopify.accessToken,
+        },
+        body: JSON.stringify(productData),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.errors || 'Failed to create product in Shopify');
+    }
+
+    const { product } = await response.json();
+
+    // Update listing with Shopify product ID
+    await pool.query(
+      'UPDATE listings SET shopify_product_id = $1, updated_at = NOW() WHERE id = $2',
+      [product.id.toString(), listingId]
+    );
+
+    console.log(`✅ Exported listing ${listingId} to Shopify product ${product.id}`);
+
+    res.json({
+      success: true,
+      shopifyProductId: product.id.toString(),
+      shopifyUrl: `https://${user.shopify.storeDomain}/admin/products/${product.id}`,
+    });
+  } catch (error) {
+    console.error('Export listing error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/shopify/sync
+ * Sync products between Shopify and Remodely
+ */
+router.post('/sync', protect, async (req, res) => {
+  try {
+    const { direction = 'import' } = req.body;
+    const user = await User.findById(req.user.userId);
+
+    if (!user?.shopify?.connected) {
+      return res.status(400).json({ error: 'Shopify not connected' });
+    }
+
+    const results = {
+      inProgress: false,
+      productsImported: 0,
+      productsExported: 0,
+      errors: [],
+      lastSyncAt: new Date().toISOString(),
+    };
+
+    // Import from Shopify
+    if (direction === 'import' || direction === 'both') {
+      const response = await fetch(
+        `https://${user.shopify.storeDomain}/admin/api/2024-01/products.json?limit=250`,
+        {
+          headers: {
+            'X-Shopify-Access-Token': user.shopify.accessToken,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const { products } = await response.json();
+
+        for (const product of products) {
+          try {
+            const existingResult = await pool.query(
+              'SELECT id FROM listings WHERE shopify_product_id = $1 AND seller_id = $2',
+              [product.id.toString(), user._id]
+            );
+
+            if (existingResult.rows.length === 0) {
+              const firstVariant = product.variants?.[0] || {};
+              await pool.query(
+                `INSERT INTO listings (
+                  seller_id, shopify_product_id, title, description, category, listing_type,
+                  price, images, brand, sku, inventory_quantity, status, source, expires_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                [
+                  user._id,
+                  product.id.toString(),
+                  product.title,
+                  product.body_html?.replace(/<[^>]*>/g, '') || '',
+                  'Stone & Tile',
+                  'Slab',
+                  parseFloat(firstVariant.price) || 0,
+                  (product.images || []).map(img => img.src),
+                  product.vendor || null,
+                  firstVariant.sku || null,
+                  firstVariant.inventory_quantity || null,
+                  product.status === 'active' ? 'active' : 'archived',
+                  'shopify',
+                  new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                ]
+              );
+              results.productsImported++;
+            }
+          } catch (err) {
+            results.errors.push({ productId: product.id, error: err.message });
+          }
+        }
+      }
+    }
+
+    // Export to Shopify (listings without shopify_product_id)
+    if (direction === 'export' || direction === 'both') {
+      const listingsResult = await pool.query(
+        'SELECT * FROM listings WHERE seller_id = $1 AND shopify_product_id IS NULL AND status = $2',
+        [user._id, 'active']
+      );
+
+      for (const listing of listingsResult.rows) {
+        try {
+          const productData = {
+            product: {
+              title: listing.title,
+              body_html: listing.description || '',
+              vendor: listing.brand || 'Remodely',
+              product_type: listing.listing_type || 'Slab',
+              status: 'active',
+              variants: [{
+                price: listing.price?.toString() || '0',
+                sku: listing.sku || `REM-${listing.id}`,
+              }],
+              images: (listing.images || []).map(src => ({ src })),
+            },
+          };
+
+          const response = await fetch(
+            `https://${user.shopify.storeDomain}/admin/api/2024-01/products.json`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': user.shopify.accessToken,
+              },
+              body: JSON.stringify(productData),
+            }
+          );
+
+          if (response.ok) {
+            const { product } = await response.json();
+            await pool.query(
+              'UPDATE listings SET shopify_product_id = $1, updated_at = NOW() WHERE id = $2',
+              [product.id.toString(), listing.id]
+            );
+            results.productsExported++;
+          }
+        } catch (err) {
+          results.errors.push({ listingId: listing.id, error: err.message });
+        }
+      }
+    }
+
+    console.log(`✅ Sync complete for user ${user._id}: ${results.productsImported} imported, ${results.productsExported} exported`);
+
+    res.json(results);
+  } catch (error) {
+    console.error('Sync error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/shopify/sync-status
+ * Get sync status
+ */
+router.get('/sync-status', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    // Count listings by source
+    const shopifyCount = await pool.query(
+      'SELECT COUNT(*) FROM listings WHERE seller_id = $1 AND source = $2',
+      [req.user.userId, 'shopify']
+    );
+
+    const manualCount = await pool.query(
+      'SELECT COUNT(*) FROM listings WHERE seller_id = $1 AND source = $2',
+      [req.user.userId, 'manual']
+    );
+
+    res.json({
+      inProgress: false,
+      productsImported: parseInt(shopifyCount.rows[0].count),
+      productsExported: parseInt(manualCount.rows[0].count),
+      errors: [],
+      lastSyncAt: user?.shopify?.connectedAt || null,
+    });
+  } catch (error) {
+    console.error('Sync status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/shopify/inventory
+ * Update inventory on Shopify
+ */
+router.put('/inventory', protect, async (req, res) => {
+  try {
+    const { variantId, quantity } = req.body;
+    const user = await User.findById(req.user.userId);
+
+    if (!user?.shopify?.connected) {
+      return res.status(400).json({ error: 'Shopify not connected' });
+    }
+
+    // First, get the inventory item ID for this variant
+    const variantResponse = await fetch(
+      `https://${user.shopify.storeDomain}/admin/api/2024-01/variants/${variantId}.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': user.shopify.accessToken,
+        },
+      }
+    );
+
+    if (!variantResponse.ok) {
+      throw new Error('Failed to fetch variant');
+    }
+
+    const { variant } = await variantResponse.json();
+    const inventoryItemId = variant.inventory_item_id;
+
+    // Get location ID (use first location)
+    const locationsResponse = await fetch(
+      `https://${user.shopify.storeDomain}/admin/api/2024-01/locations.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': user.shopify.accessToken,
+        },
+      }
+    );
+
+    if (!locationsResponse.ok) {
+      throw new Error('Failed to fetch locations');
+    }
+
+    const { locations } = await locationsResponse.json();
+    const locationId = locations[0]?.id;
+
+    if (!locationId) {
+      throw new Error('No location found');
+    }
+
+    // Update inventory level
+    const inventoryResponse = await fetch(
+      `https://${user.shopify.storeDomain}/admin/api/2024-01/inventory_levels/set.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': user.shopify.accessToken,
+        },
+        body: JSON.stringify({
+          location_id: locationId,
+          inventory_item_id: inventoryItemId,
+          available: quantity,
+        }),
+      }
+    );
+
+    if (!inventoryResponse.ok) {
+      const error = await inventoryResponse.json();
+      throw new Error(error.errors || 'Failed to update inventory');
+    }
+
+    console.log(`✅ Updated inventory for variant ${variantId} to ${quantity}`);
+
+    res.json({ success: true, quantity });
+  } catch (error) {
+    console.error('Update inventory error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/shopify/orders
+ * Fetch orders from connected Shopify store
+ */
+router.get('/orders', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user?.shopify?.connected) {
+      return res.status(400).json({ error: 'Shopify not connected' });
+    }
+
+    const { limit = 50, status = 'any', fulfillment_status } = req.query;
+
+    let url = `https://${user.shopify.storeDomain}/admin/api/2024-01/orders.json?limit=${limit}&status=${status}`;
+    if (fulfillment_status) {
+      url += `&fulfillment_status=${fulfillment_status}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'X-Shopify-Access-Token': user.shopify.accessToken,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders from Shopify');
+    }
+
+    const { orders } = await response.json();
+
+    res.json({
+      success: true,
+      orders: orders || [],
+      hasMore: orders?.length >= parseInt(limit),
+    });
+  } catch (error) {
+    console.error('Fetch orders error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // HTML templates for OAuth callback
 const successHtml = (storeName) => `
 <!DOCTYPE html>
