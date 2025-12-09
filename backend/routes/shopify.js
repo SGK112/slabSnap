@@ -11,6 +11,7 @@ import express from 'express';
 import crypto from 'crypto';
 import { protect } from '../middleware/auth.js';
 import User from '../models/User.js';
+import pool from '../db/index.js';
 
 const router = express.Router();
 
@@ -389,29 +390,33 @@ router.get('/products', protect, async (req, res) => {
 
 /**
  * POST /api/shopify/import-product
- * Import a Shopify product to Remodely listing
+ * Import a Shopify product to Remodely listing - SAVES TO DATABASE
  */
 router.post('/import-product', protect, async (req, res) => {
   try {
-    const { shopifyProductId, listing } = req.body;
+    const { shopifyProductId } = req.body;
     const user = await User.findById(req.user.userId);
 
     if (!user?.shopify?.connected) {
       return res.status(400).json({ error: 'Shopify not connected' });
     }
 
-    // If listing is provided from client, just acknowledge it
-    // The listing is already stored in the client's local state
-    if (listing) {
-      console.log(`Product ${shopifyProductId} imported as listing ${listing.id}`);
+    // Check if product already imported
+    const existingResult = await pool.query(
+      'SELECT id FROM listings WHERE shopify_product_id = $1 AND seller_id = $2',
+      [shopifyProductId.toString(), user._id]
+    );
+
+    if (existingResult.rows.length > 0) {
       return res.json({
         success: true,
-        listingId: listing.id,
-        message: 'Product imported successfully',
+        listingId: existingResult.rows[0].id,
+        message: 'Product already imported',
+        alreadyExists: true,
       });
     }
 
-    // If only ID is provided, fetch the product from Shopify and create listing
+    // Fetch the product from Shopify
     const productResponse = await fetch(
       `https://${user.shopify.storeDomain}/admin/api/2024-01/products/${shopifyProductId}.json`,
       {
@@ -426,35 +431,74 @@ router.post('/import-product', protect, async (req, res) => {
     }
 
     const { product } = await productResponse.json();
-
-    // Create a basic listing from the Shopify product
-    const listingId = `shopify-${product.id}`;
     const firstVariant = product.variants?.[0] || {};
 
-    const newListing = {
-      id: listingId,
-      shopifyProductId: product.id,
-      sellerId: user._id.toString(),
-      sellerName: user.businessName || user.name || 'Store',
-      sellerRating: user.rating || 5.0,
-      title: product.title,
-      description: product.body_html?.replace(/<[^>]*>/g, '') || '',
-      category: 'Stone & Tile', // Default category
-      listingType: product.product_type?.toLowerCase().includes('remnant') ? 'Remnant' : 'Slab',
-      price: parseFloat(firstVariant.price) || 0,
-      images: (product.images || []).map(img => img.src),
-      location: user.location || 'Surprise, AZ',
-      status: product.status === 'active' ? 'active' : 'archived',
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-      views: 0,
-      brand: product.vendor,
-    };
+    // Determine listing type from product type
+    const productType = (product.product_type || '').toLowerCase();
+    let listingType = 'Slab';
+    if (productType.includes('remnant')) listingType = 'Remnant';
+    else if (productType.includes('tile')) listingType = 'Tile';
+    else if (productType.includes('prefab')) listingType = 'Prefab';
+
+    // Extract dimensions from variant if available
+    const dimensions = {};
+    if (firstVariant.weight) dimensions.weight = firstVariant.weight;
+    if (firstVariant.weight_unit) dimensions.weightUnit = firstVariant.weight_unit;
+
+    // Insert into database
+    const insertResult = await pool.query(
+      `INSERT INTO listings (
+        seller_id, shopify_product_id, shopify_variant_id, title, description,
+        category, listing_type, price, compare_at_price, images, location,
+        brand, sku, inventory_quantity, dimensions, status, source, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      RETURNING *`,
+      [
+        user._id,
+        product.id.toString(),
+        firstVariant.id?.toString() || null,
+        product.title,
+        product.body_html?.replace(/<[^>]*>/g, '') || '',
+        'Stone & Tile',
+        listingType,
+        parseFloat(firstVariant.price) || 0,
+        firstVariant.compare_at_price ? parseFloat(firstVariant.compare_at_price) : null,
+        (product.images || []).map(img => img.src),
+        user.location || 'Surprise, AZ',
+        product.vendor || null,
+        firstVariant.sku || null,
+        firstVariant.inventory_quantity || null,
+        Object.keys(dimensions).length > 0 ? JSON.stringify(dimensions) : null,
+        product.status === 'active' ? 'active' : 'archived',
+        'shopify',
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      ]
+    );
+
+    const newListing = insertResult.rows[0];
+
+    console.log(`✅ Shopify product ${product.id} imported as listing ${newListing.id} for user ${user._id}`);
 
     res.json({
       success: true,
-      listingId,
-      listing: newListing,
+      listingId: newListing.id,
+      listing: {
+        id: newListing.id,
+        shopifyProductId: newListing.shopify_product_id,
+        sellerId: newListing.seller_id,
+        title: newListing.title,
+        description: newListing.description,
+        category: newListing.category,
+        listingType: newListing.listing_type,
+        price: parseFloat(newListing.price),
+        images: newListing.images,
+        location: newListing.location,
+        brand: newListing.brand,
+        status: newListing.status,
+        source: newListing.source,
+        createdAt: newListing.created_at,
+      },
+      message: 'Product imported successfully',
     });
   } catch (error) {
     console.error('Import product error:', error);
@@ -464,7 +508,7 @@ router.post('/import-product', protect, async (req, res) => {
 
 /**
  * POST /api/shopify/import-all
- * Import all products from Shopify to Remodely
+ * Import all products from Shopify to Remodely - SAVES TO DATABASE
  */
 router.post('/import-all', protect, async (req, res) => {
   try {
@@ -489,39 +533,185 @@ router.post('/import-all', protect, async (req, res) => {
     }
 
     const { products } = await response.json();
-    const listings = [];
+    const importedListings = [];
+    const skippedProducts = [];
+    const errors = [];
 
     for (const product of products) {
-      const firstVariant = product.variants?.[0] || {};
-      const listing = {
-        id: `shopify-${product.id}`,
-        shopifyProductId: product.id,
-        sellerId: user._id.toString(),
-        sellerName: user.businessName || user.name || 'Store',
-        sellerRating: user.rating || 5.0,
-        title: product.title,
-        description: product.body_html?.replace(/<[^>]*>/g, '') || '',
-        category: 'Stone & Tile',
-        listingType: product.product_type?.toLowerCase().includes('remnant') ? 'Remnant' : 'Slab',
-        price: parseFloat(firstVariant.price) || 0,
-        images: (product.images || []).map(img => img.src),
-        location: user.location || 'Surprise, AZ',
-        status: product.status === 'active' ? 'active' : 'archived',
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        views: 0,
-        brand: product.vendor,
-      };
-      listings.push(listing);
+      try {
+        // Check if product already imported
+        const existingResult = await pool.query(
+          'SELECT id FROM listings WHERE shopify_product_id = $1 AND seller_id = $2',
+          [product.id.toString(), user._id]
+        );
+
+        if (existingResult.rows.length > 0) {
+          skippedProducts.push({ id: product.id, title: product.title, reason: 'Already imported' });
+          continue;
+        }
+
+        const firstVariant = product.variants?.[0] || {};
+
+        // Determine listing type from product type
+        const productType = (product.product_type || '').toLowerCase();
+        let listingType = 'Slab';
+        if (productType.includes('remnant')) listingType = 'Remnant';
+        else if (productType.includes('tile')) listingType = 'Tile';
+        else if (productType.includes('prefab')) listingType = 'Prefab';
+
+        // Extract dimensions
+        const dimensions = {};
+        if (firstVariant.weight) dimensions.weight = firstVariant.weight;
+        if (firstVariant.weight_unit) dimensions.weightUnit = firstVariant.weight_unit;
+
+        // Insert into database
+        const insertResult = await pool.query(
+          `INSERT INTO listings (
+            seller_id, shopify_product_id, shopify_variant_id, title, description,
+            category, listing_type, price, compare_at_price, images, location,
+            brand, sku, inventory_quantity, dimensions, status, source, expires_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+          RETURNING *`,
+          [
+            user._id,
+            product.id.toString(),
+            firstVariant.id?.toString() || null,
+            product.title,
+            product.body_html?.replace(/<[^>]*>/g, '') || '',
+            'Stone & Tile',
+            listingType,
+            parseFloat(firstVariant.price) || 0,
+            firstVariant.compare_at_price ? parseFloat(firstVariant.compare_at_price) : null,
+            (product.images || []).map(img => img.src),
+            user.location || 'Surprise, AZ',
+            product.vendor || null,
+            firstVariant.sku || null,
+            firstVariant.inventory_quantity || null,
+            Object.keys(dimensions).length > 0 ? JSON.stringify(dimensions) : null,
+            product.status === 'active' ? 'active' : 'archived',
+            'shopify',
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          ]
+        );
+
+        importedListings.push({
+          id: insertResult.rows[0].id,
+          shopifyProductId: product.id,
+          title: product.title,
+        });
+
+      } catch (err) {
+        console.error(`Error importing product ${product.id}:`, err);
+        errors.push({ id: product.id, title: product.title, error: err.message });
+      }
     }
+
+    console.log(`✅ Bulk import complete for user ${user._id}: ${importedListings.length} imported, ${skippedProducts.length} skipped, ${errors.length} errors`);
 
     res.json({
       success: true,
-      imported: listings.length,
-      listings,
+      imported: importedListings.length,
+      skipped: skippedProducts.length,
+      errors: errors.length,
+      listings: importedListings,
+      skippedProducts,
+      errorDetails: errors,
     });
   } catch (error) {
     console.error('Import all products error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/shopify/listings
+ * Get all listings for the current user (including Shopify imports)
+ */
+router.get('/listings', protect, async (req, res) => {
+  try {
+    const { source, status, limit = 50, offset = 0 } = req.query;
+
+    let query = 'SELECT * FROM listings WHERE seller_id = $1';
+    const params = [req.user.userId];
+    let paramIndex = 2;
+
+    if (source) {
+      query += ` AND source = $${paramIndex++}`;
+      params.push(source);
+    }
+
+    if (status) {
+      query += ` AND status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const result = await pool.query(query, params);
+
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) FROM listings WHERE seller_id = $1';
+    const countParams = [req.user.userId];
+    if (source) {
+      countQuery += ' AND source = $2';
+      countParams.push(source);
+    }
+    const countResult = await pool.query(countQuery, countParams);
+
+    res.json({
+      success: true,
+      listings: result.rows.map(row => ({
+        id: row.id,
+        shopifyProductId: row.shopify_product_id,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        listingType: row.listing_type,
+        price: parseFloat(row.price),
+        compareAtPrice: row.compare_at_price ? parseFloat(row.compare_at_price) : null,
+        images: row.images,
+        location: row.location,
+        brand: row.brand,
+        sku: row.sku,
+        inventoryQuantity: row.inventory_quantity,
+        status: row.status,
+        source: row.source,
+        views: row.views,
+        favorites: row.favorites,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+      })),
+      total: parseInt(countResult.rows[0].count),
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+  } catch (error) {
+    console.error('Get listings error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/shopify/listing/:id
+ * Delete a listing
+ */
+router.delete('/listing/:id', protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'DELETE FROM listings WHERE id = $1 AND seller_id = $2 RETURNING *',
+      [id, req.user.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    res.json({ success: true, message: 'Listing deleted' });
+  } catch (error) {
+    console.error('Delete listing error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -764,7 +954,7 @@ router.post('/webhooks/shop-redact', verifyShopifyWebhook, async (req, res) => {
 
 /**
  * POST /api/shopify/webhooks/products-update
- * Optional: Sync product updates from Shopify
+ * Sync product updates from Shopify to listings database
  */
 router.post('/webhooks/products-update', verifyShopifyWebhook, async (req, res) => {
   try {
@@ -773,8 +963,40 @@ router.post('/webhooks/products-update', verifyShopifyWebhook, async (req, res) 
 
     console.log(`Product update webhook for shop: ${shopDomain}, product: ${product.id}`);
 
-    // In a full implementation, you would update the corresponding listing
-    // For now, we just acknowledge
+    // Find and update the corresponding listing
+    const firstVariant = product.variants?.[0] || {};
+
+    const updateResult = await pool.query(
+      `UPDATE listings SET
+        title = $1,
+        description = $2,
+        price = $3,
+        compare_at_price = $4,
+        images = $5,
+        brand = $6,
+        sku = $7,
+        inventory_quantity = $8,
+        status = $9,
+        updated_at = NOW()
+      WHERE shopify_product_id = $10
+      RETURNING id`,
+      [
+        product.title,
+        product.body_html?.replace(/<[^>]*>/g, '') || '',
+        parseFloat(firstVariant.price) || 0,
+        firstVariant.compare_at_price ? parseFloat(firstVariant.compare_at_price) : null,
+        (product.images || []).map(img => img.src),
+        product.vendor || null,
+        firstVariant.sku || null,
+        firstVariant.inventory_quantity || null,
+        product.status === 'active' ? 'active' : 'archived',
+        product.id.toString(),
+      ]
+    );
+
+    if (updateResult.rows.length > 0) {
+      console.log(`✅ Updated listing ${updateResult.rows[0].id} from Shopify product ${product.id}`);
+    }
 
     res.status(200).json({ success: true });
   } catch (error) {
@@ -785,7 +1007,7 @@ router.post('/webhooks/products-update', verifyShopifyWebhook, async (req, res) 
 
 /**
  * POST /api/shopify/webhooks/products-delete
- * Optional: Handle product deletion from Shopify
+ * Handle product deletion from Shopify - archives the listing
  */
 router.post('/webhooks/products-delete', verifyShopifyWebhook, async (req, res) => {
   try {
@@ -794,8 +1016,17 @@ router.post('/webhooks/products-delete', verifyShopifyWebhook, async (req, res) 
 
     console.log(`Product delete webhook for shop: ${shopDomain}, product: ${id}`);
 
-    // In a full implementation, you would remove or archive the corresponding listing
-    // For now, we just acknowledge
+    // Archive the listing (don't delete, in case they want to restore)
+    const updateResult = await pool.query(
+      `UPDATE listings SET status = 'archived', updated_at = NOW()
+       WHERE shopify_product_id = $1
+       RETURNING id`,
+      [id.toString()]
+    );
+
+    if (updateResult.rows.length > 0) {
+      console.log(`✅ Archived listing ${updateResult.rows[0].id} (Shopify product ${id} deleted)`);
+    }
 
     res.status(200).json({ success: true });
   } catch (error) {

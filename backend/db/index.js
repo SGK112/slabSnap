@@ -33,10 +33,25 @@ export const initDatabase = async () => {
         shopify_scope TEXT,
         shopify_store_name VARCHAR(255),
         shopify_connected_at TIMESTAMP,
+        password_reset_code VARCHAR(6),
+        password_reset_expires TIMESTAMP,
         last_login TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add password reset columns if they don't exist (migration for existing databases)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password_reset_code') THEN
+          ALTER TABLE users ADD COLUMN password_reset_code VARCHAR(6);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password_reset_expires') THEN
+          ALTER TABLE users ADD COLUMN password_reset_expires TIMESTAMP;
+        END IF;
+      END $$;
     `);
 
     // Create subscriptions table
@@ -183,7 +198,47 @@ export const initDatabase = async () => {
       )
     `);
 
-    console.log('✅ Database tables initialized (including subscriptions, promotions, quotes, leads)');
+    // Create listings table (marketplace listings including Shopify imports)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS listings (
+        id SERIAL PRIMARY KEY,
+        seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        shopify_product_id VARCHAR(100),
+        shopify_variant_id VARCHAR(100),
+        title VARCHAR(500) NOT NULL,
+        description TEXT,
+        category VARCHAR(100) DEFAULT 'Stone & Tile',
+        listing_type VARCHAR(50) DEFAULT 'Slab',
+        price DECIMAL(10,2),
+        compare_at_price DECIMAL(10,2),
+        images TEXT[],
+        location VARCHAR(255),
+        brand VARCHAR(255),
+        sku VARCHAR(100),
+        inventory_quantity INTEGER,
+        dimensions JSONB,
+        specifications JSONB,
+        status VARCHAR(20) DEFAULT 'active',
+        source VARCHAR(50) DEFAULT 'manual',
+        views INTEGER DEFAULT 0,
+        favorites INTEGER DEFAULT 0,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index for faster Shopify product lookups
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_listings_shopify_product_id ON listings(shopify_product_id)
+    `);
+
+    // Create index for seller lookups
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_listings_seller_id ON listings(seller_id)
+    `);
+
+    console.log('✅ Database tables initialized (including subscriptions, promotions, quotes, leads, listings)');
   } catch (error) {
     console.error('❌ Database initialization error:', error);
     throw error;
