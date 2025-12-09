@@ -1,0 +1,25 @@
+# REMODELYAI-V3 Shopify App Configuration
+# GDPR compliance webhooks configured for App Store approval
+
+name = "REMODELYAI-V3"
+client_id = "bc5889cec3e028fae75633ca2a529094"
+application_url = "https://remodely-backend.onrender.com"
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+scopes = "read_customers,write_customers,read_fulfillments,write_fulfillments,write_inventory,read_inventory,read_locations,write_order_edits,read_order_edits,read_orders,write_orders,read_products,write_products,read_shipping"
+
+[auth]
+redirect_urls = ["https://remodely-backend.onrender.com/api/shopify/callback"]
+
+[webhooks]
+api_version = "2025-01"
+
+# GDPR Mandatory Compliance Webhooks
+[webhooks.privacy_compliance]
+customer_deletion_url = "https://remodely-backend.onrender.com/api/shopify/webhooks/customers-redact"
+customer_data_request_url = "https://remodely-backend.onrender.com/api/shopify/webhooks/customers-data-request"
+shop_deletion_url = "https://remodely-backend.onrender.com/api/shopify/webhooks/shop-redact"

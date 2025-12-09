@@ -17,6 +17,72 @@ const router = express.Router();
 // In-memory state storage (use Redis in production)
 const pendingStates = new Map();
 
+// Webhook base URL
+const WEBHOOK_BASE_URL = process.env.API_URL || 'https://remodely-backend.onrender.com';
+
+/**
+ * Register webhooks with a Shopify store
+ * Called after successful OAuth to set up event notifications
+ */
+async function registerWebhooks(shop, accessToken) {
+  const webhooksToRegister = [
+    {
+      topic: 'app/uninstalled',
+      address: `${WEBHOOK_BASE_URL}/api/shopify/webhooks/app-uninstalled`,
+    },
+    {
+      topic: 'products/update',
+      address: `${WEBHOOK_BASE_URL}/api/shopify/webhooks/products-update`,
+    },
+    {
+      topic: 'products/delete',
+      address: `${WEBHOOK_BASE_URL}/api/shopify/webhooks/products-delete`,
+    },
+  ];
+
+  const results = [];
+
+  for (const webhook of webhooksToRegister) {
+    try {
+      const response = await fetch(`https://${shop}/admin/api/2024-01/webhooks.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        body: JSON.stringify({
+          webhook: {
+            topic: webhook.topic,
+            address: webhook.address,
+            format: 'json',
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(`✅ Webhook registered: ${webhook.topic} for ${shop}`);
+        results.push({ topic: webhook.topic, success: true, id: data.webhook?.id });
+      } else {
+        // 422 usually means webhook already exists - that's fine
+        if (response.status === 422) {
+          console.log(`ℹ️ Webhook already exists: ${webhook.topic} for ${shop}`);
+          results.push({ topic: webhook.topic, success: true, exists: true });
+        } else {
+          console.error(`❌ Failed to register webhook ${webhook.topic}:`, data);
+          results.push({ topic: webhook.topic, success: false, error: data.errors });
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error registering webhook ${webhook.topic}:`, error);
+      results.push({ topic: webhook.topic, success: false, error: error.message });
+    }
+  }
+
+  return results;
+}
+
 /**
  * Verify Shopify HMAC signature
  * Required for OAuth callback and webhook validation
@@ -210,6 +276,11 @@ router.get('/auth/callback', async (req, res) => {
     const shopData = await shopResponse.json();
     const storeName = shopData.shop?.name || shop;
 
+    // Register webhooks for this store
+    console.log(`Registering webhooks for ${shop}...`);
+    const webhookResults = await registerWebhooks(shop, tokenData.access_token);
+    console.log('Webhook registration results:', webhookResults);
+
     // Save to user
     await User.findByIdAndUpdate(userId, {
       shopify: {
@@ -219,6 +290,7 @@ router.get('/auth/callback', async (req, res) => {
         scope: tokenData.scope,
         storeName,
         connectedAt: new Date(),
+        webhooksRegistered: webhookResults.every(r => r.success),
       },
     });
 
