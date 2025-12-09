@@ -33,9 +33,10 @@
         "NSCalendarsUsageDescription": "Remodely needs calendar access to schedule appointments",
         "NSCalendarsFullAccessUsageDescription": "Remodely needs full calendar access to manage your appointments",
         "NSCalendarsWriteOnlyAccessUsageDescription": "Remodely needs calendar access to add appointments",
+        "NSContactsUsageDescription": "Remodely needs contacts access to help you connect with vendors and share project details",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "3"
+      "buildNumber": "7"
     },
     "android": {
       "adaptiveIcon": {
@@ -59,7 +60,7 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
       ],
-      "versionCode": 3
+      "versionCode": 8
     },
     "plugins": [
       "expo-camera",
@@ -70,6 +71,14 @@
         {
           "calendarPermission": "Remodely needs calendar access to schedule appointments",
           "remindersPermission": "Remodely needs reminders access to manage your appointments"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.24"
+          }
         }
       ]
     ],
