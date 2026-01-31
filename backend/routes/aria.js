@@ -8,6 +8,7 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const ARIA_BRIDGE_URL = process.env.ARIA_BRIDGE_URL || 'wss://aria-bridge.onrender.com';
+const THIS_BACKEND_URL = process.env.THIS_BACKEND_URL || 'https://remodely-backend.onrender.com';
 
 // Email transporter
 const transporter = nodemailer.createTransport({
@@ -113,6 +114,7 @@ router.post('/trigger-call', async (req, res) => {
       <Parameter name="leadId" value="${leadId || ''}" />
       <Parameter name="agentId" value="aria" />
       <Parameter name="voice" value="coral" />
+      <Parameter name="backendUrl" value="${THIS_BACKEND_URL}" />
       <Parameter name="systemInstructions" value="${encodedInstructions}" />
     </Stream>
   </Connect>
