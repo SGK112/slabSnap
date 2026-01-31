@@ -25,6 +25,7 @@ const transporter = nodemailer.createTransport({
 const leads = new Map();
 const calls = new Map();
 const appointments = new Map();
+const callContexts = new Map();  // Store full call context for Aria to fetch
 
 // Tool execution endpoint - called by Aria Bridge during calls
 router.post('/tool-execute', async (req, res) => {
@@ -107,11 +108,21 @@ router.post('/trigger-call', async (req, res) => {
   try {
     const callId = `prequal_${Date.now()}`;
 
-    // Pre-qual system instructions - include grader results if available
+    // Store full context for Aria to fetch (avoids TwiML size limit)
     const systemInstructions = buildPreQualInstructions(contactName, businessName, graderResults);
-    const encodedInstructions = Buffer.from(systemInstructions).toString('base64');
+    callContexts.set(callId, {
+      contactName,
+      contactPhone,
+      contactEmail,
+      businessName,
+      leadId,
+      source,
+      graderResults,
+      systemInstructions,
+      createdAt: new Date().toISOString()
+    });
 
-    // Build TwiML
+    // Simple TwiML - Aria fetches full context via API
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
@@ -119,12 +130,11 @@ router.post('/trigger-call', async (req, res) => {
       <Parameter name="contactName" value="${contactName || 'there'}" />
       <Parameter name="contactPhone" value="${contactPhone}" />
       <Parameter name="direction" value="outbound" />
-      <Parameter name="purpose" value="pre-qualification call" />
+      <Parameter name="purpose" value="pre-qualification" />
       <Parameter name="leadId" value="${leadId || ''}" />
       <Parameter name="agentId" value="aria" />
       <Parameter name="voice" value="coral" />
       <Parameter name="backendUrl" value="${THIS_BACKEND_URL}" />
-      <Parameter name="systemInstructions" value="${encodedInstructions}" />
     </Stream>
   </Connect>
 </Response>`;
@@ -180,6 +190,15 @@ router.get('/call/:callId', (req, res) => {
     return res.status(404).json({ success: false, error: 'Call not found' });
   }
   return res.json({ success: true, call });
+});
+
+// Get call context and system instructions (called by Aria Bridge)
+router.get('/call-context/:callId', (req, res) => {
+  const context = callContexts.get(req.params.callId);
+  if (!context) {
+    return res.status(404).json({ success: false, error: 'Call context not found' });
+  }
+  return res.json({ success: true, ...context });
 });
 
 // Get lead info
