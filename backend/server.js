@@ -17,6 +17,7 @@ import shopifyRoutes from './routes/shopify.js';
 import contactRoutes from './routes/contact.js';
 import subscriptionRoutes from './routes/subscriptions.js';
 import graderRoutes from './routes/grader.js';
+import ariaRoutes from './routes/aria.js';
 
 dotenv.config();
 
@@ -94,6 +95,7 @@ app.use('/api/shopify', shopifyRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/grader', graderRoutes);
+app.use('/api/aria-realtime', ariaRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
