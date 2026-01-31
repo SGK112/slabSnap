@@ -3,12 +3,14 @@ import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
-// Email transporter
+// Email transporter using existing SMTP env vars
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT) || 587,
+  secure: false,
   auth: {
-    user: 'help.remodely@gmail.com',
-    pass: process.env.GMAIL_APP_PASSWORD
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD?.replace(/\s/g, '')
   }
 });
 
@@ -100,7 +102,7 @@ router.post('/send-report', async (req, res) => {
 </html>`;
 
     await transporter.sendMail({
-      from: '"Remodely AI" <help.remodely@gmail.com>',
+      from: `"Remodely AI" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
       to: email,
       subject: `Your AI Visibility Report - Score: ${overallScore}/100`,
       html
