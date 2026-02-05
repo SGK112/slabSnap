@@ -42,10 +42,9 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
   const [error, setError] = useState<string | null>(null);
 
   // Use Expo's Google auth provider
-  // Only use iOS client ID for native builds - it handles its own redirect URI
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: GOOGLE_CLIENT_IDS.ios,
-    // Don't set webClientId - we want to use native iOS OAuth
+    webClientId: GOOGLE_CLIENT_IDS.web,
   });
 
   // Handle the auth response
