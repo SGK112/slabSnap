@@ -30,7 +30,14 @@ services:
         name: Cache-Control
         value: public, max-age=31536000, immutable
     routes:
-      # SPA fallback - all routes go to index.html
+      # Serve static assets directly
       - type: rewrite
-        source: /*
+        source: /_expo/**
+        destination: /_expo/**
+      - type: rewrite
+        source: /assets/**
+        destination: /assets/**
+      # SPA fallback - all other routes go to index.html
+      - type: rewrite
+        source: /**
         destination: /index.html
