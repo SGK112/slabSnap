@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   Share,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -16,10 +17,12 @@ import { RootStackParamList } from "../nav";
 import { useAuthStore } from "../state/authStore";
 import { useProjectStore } from "../state/projectStore";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../utils/colors";
 import * as Haptics from "expo-haptics";
 import { Project, ProjectRoomType, Lead } from "../types/marketplace";
 import { useVendorCatalogStore } from "../state/vendorCatalogStore";
+import { getCurrentTenant } from "../config/tenant";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -589,18 +592,54 @@ export default function ToolsScreen() {
     </Text>
   );
 
+  const tenant = getCurrentTenant();
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Header - contextual based on user type */}
-        <View className="px-5 pt-4 pb-4">
-          <Text style={{ fontSize: 28, fontWeight: "800", color: "#0f172a", letterSpacing: -0.5 }}>
-            {isPro ? "Pro Tools" : "Tools"}
+        {/* Branded Header with Remodely branding */}
+        <LinearGradient
+          colors={tenant.branding.headerGradient || [colors.primary[600], colors.primary[700]]}
+          style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 12,
+            }}>
+              <Ionicons name="construct" size={26} color="white" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 22, fontWeight: "800", color: "white", letterSpacing: -0.5 }}>
+                  {isPro ? "Pro Tools" : "Tool Hub"}
+                </Text>
+                {isPro && (
+                  <View style={{
+                    marginLeft: 8,
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 8,
+                  }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: 'white' }}>PRO</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
+                Powered by {tenant.displayName}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>
+            {isPro ? "Manage your business and serve customers" : "Plan and manage your remodel project"}
           </Text>
-          <Text style={{ fontSize: 15, color: "#6b7280", marginTop: 4 }}>
-            {isPro ? "Manage your business and serve customers" : "Plan and manage your remodel"}
-          </Text>
-        </View>
+        </LinearGradient>
 
         {/* ===== PRO USER LAYOUT ===== */}
         {isPro && (

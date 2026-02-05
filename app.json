@@ -12,7 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#FF6B35"
     },
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.remodelyllc.remodely",
@@ -36,7 +36,7 @@
         "NSContactsUsageDescription": "Remodely needs contacts access to help you connect with vendors and share project details",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "7"
+      "buildNumber": "9"
     },
     "android": {
       "adaptiveIcon": {
@@ -73,7 +73,15 @@
           "remindersPermission": "Remodely needs reminders access to manage your appointments"
         }
       ],
-      "expo-build-properties"
+      "expo-build-properties",
+      "@react-native-community/datetimepicker",
+      "expo-asset",
+      "expo-font",
+      "expo-mail-composer",
+      "expo-sqlite",
+      "expo-video",
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

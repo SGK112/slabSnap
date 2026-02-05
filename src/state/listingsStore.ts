@@ -2,12 +2,18 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Listing } from "../types/marketplace";
+import marketplaceSlabs from "../data/marketplace-slabs.json";
+
+// Seed data version - increment when updating seed data
+const SEED_DATA_VERSION = 1;
+const SEED_VERSION_KEY = "marketplace_seed_version";
 
 interface ListingsState {
   listings: Listing[];
   myListings: Listing[];
   favoriteIds: string[];
   dataVersion: number;
+  seedDataLoaded: boolean;
   addListing: (listing: Listing) => void;
   updateListing: (id: string, updates: Partial<Listing>) => void;
   deleteListing: (id: string) => void;
@@ -17,6 +23,8 @@ interface ListingsState {
   getListingById: (id: string) => Listing | undefined;
   getUserListings: (userId: string) => Listing[];
   loadMockData: () => void;
+  loadSeedData: () => Promise<void>;
+  checkAndLoadSeedData: () => Promise<void>;
 }
 
 export const useListingsStore = create<ListingsState>()(
@@ -26,6 +34,7 @@ export const useListingsStore = create<ListingsState>()(
       myListings: [],
       favoriteIds: [],
       dataVersion: 3,
+      seedDataLoaded: false,
 
       addListing: (listing: Listing) => {
         set((state) => ({
@@ -347,6 +356,65 @@ export const useListingsStore = create<ListingsState>()(
         ];
 
         set({ listings: mockListings, dataVersion: 5 });
+      },
+
+      // Load seed data from marketplace-slabs.json
+      loadSeedData: async () => {
+        try {
+          // Convert marketplace products to Listing format for featured products
+          const featuredProducts = marketplaceSlabs.products
+            .filter((p: any) => p.featured || p.bestSeller)
+            .slice(0, 50) // Limit to 50 featured products
+            .map((product: any) => ({
+              id: `seed-${product.id}`,
+              sellerId: "marketplace",
+              sellerName: product.brand,
+              sellerRating: 5.0,
+              title: product.name,
+              description: product.description || `${product.name} - ${product.material_type}`,
+              category: "Stone & Tile" as const,
+              subcategory: `${product.material_type} Slabs`,
+              stoneType: product.material_type,
+              listingType: "Slab" as const,
+              price: Math.round(product.unit_price * 55), // Assume ~55 sq ft slab
+              images: product.images?.length > 0 ? product.images : [product.primary_image_url].filter(Boolean),
+              location: "Phoenix, AZ",
+              coordinates: { latitude: 33.4484, longitude: -112.0740 },
+              status: "active" as const,
+              createdAt: Date.now() - 1000 * 60 * 60 * 24 * Math.random() * 7,
+              expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+              views: product.views || Math.floor(Math.random() * 200),
+              dimensions: { length: 120, width: 55, thickness: 3 },
+            }));
+
+          // Store seed version
+          await AsyncStorage.setItem(SEED_VERSION_KEY, String(SEED_DATA_VERSION));
+
+          set((state) => ({
+            listings: [...featuredProducts, ...state.listings.filter(l => !l.id.startsWith('seed-'))],
+            seedDataLoaded: true,
+          }));
+
+          console.log(`Loaded ${featuredProducts.length} marketplace seed products`);
+        } catch (error) {
+          console.error("Failed to load seed data:", error);
+        }
+      },
+
+      // Check if seed data needs to be loaded/updated
+      checkAndLoadSeedData: async () => {
+        try {
+          const storedVersion = await AsyncStorage.getItem(SEED_VERSION_KEY);
+          const currentVersion = parseInt(storedVersion || "0", 10);
+
+          if (currentVersion < SEED_DATA_VERSION || !get().seedDataLoaded) {
+            await get().loadSeedData();
+          }
+        } catch (error) {
+          console.error("Failed to check seed data:", error);
+          // Load anyway on error
+          await get().loadSeedData();
+        }
       },
     }),
     {

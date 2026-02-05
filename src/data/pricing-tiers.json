@@ -1,0 +1,1381 @@
+{
+  "version": "1.0",
+  "generated": "2026-02-04T21:40:49.721Z",
+  "sources": [
+    "MSI Price Lists - January 2025",
+    "Daltile CTF Price List - January 2026"
+  ],
+  "msi": {
+    "brand": "MSI",
+    "quartz": [
+      {
+        "group": "group0",
+        "label": "Group 0 - Entry Level",
+        "price_2cm": 8.4,
+        "price_3cm": 10,
+        "color_count": 9,
+        "colors": [
+          {
+            "name": "Aruca White",
+            "sku": "QSL-ARUCAWHT",
+            "color": "#F5F5F5"
+          },
+          {
+            "name": "Bayshore Sand",
+            "sku": "QSL-BAYSHRSND",
+            "color": "#D4C4A8"
+          },
+          {
+            "name": "Bianco Pepper",
+            "sku": "QSL-BIANPEPPER",
+            "color": "#E8E4E0"
+          },
+          {
+            "name": "Frost White",
+            "sku": "QSL-FRSTWHT",
+            "color": "#FFFFFF"
+          },
+          {
+            "name": "Iced White",
+            "sku": "QSL-ICEDWHT",
+            "color": "#F8F8F8"
+          },
+          {
+            "name": "Iced Gray",
+            "sku": "QSL-ICEDGRY",
+            "color": "#C0C0C0"
+          },
+          {
+            "name": "Macabo Gray",
+            "sku": "QSL-MACABOGRY",
+            "color": "#808080"
+          },
+          {
+            "name": "Pebble Rock",
+            "sku": "QSL-PEBROCK",
+            "color": "#A0A090"
+          },
+          {
+            "name": "Sparkling White",
+            "sku": "QSL-SPRWHT",
+            "color": "#FAFAFA"
+          }
+        ]
+      },
+      {
+        "group": "group1",
+        "label": "Group 1",
+        "price_2cm": 9,
+        "price_3cm": 11.4,
+        "color_count": 7,
+        "colors": [
+          {
+            "name": "Arctic White",
+            "sku": "QSL-ARCWHT",
+            "color": "#F0F0F0"
+          },
+          {
+            "name": "Carrara Delphi",
+            "sku": "QSL-CARDELPHI",
+            "color": "#E8E8E8"
+          },
+          {
+            "name": "Carrara Miksa",
+            "sku": "QSL-CARMIKSA",
+            "color": "#ECECEC"
+          },
+          {
+            "name": "Carrara Trigato",
+            "sku": "QSL-CARTRIGATO",
+            "color": "#E5E5E5"
+          },
+          {
+            "name": "Manhattan Gray",
+            "sku": "QSL-MANHATGRY",
+            "color": "#6E6E6E"
+          },
+          {
+            "name": "Peppercorn White",
+            "sku": "QSL-PEPPERWHT",
+            "color": "#F2F2F2"
+          },
+          {
+            "name": "Snow White",
+            "sku": "QSL-SNOWHTE",
+            "color": "#FEFEFE"
+          }
+        ]
+      },
+      {
+        "group": "group2",
+        "label": "Group 2",
+        "price_2cm": 10.75,
+        "price_3cm": 13.5,
+        "color_count": 12,
+        "colors": [
+          {
+            "name": "Calacatta Alto",
+            "sku": "QSL-CALAALTO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Carrara Breve",
+            "sku": "QSL-CARBREVE",
+            "color": "#F0EFED"
+          },
+          {
+            "name": "Calacatta Duolina",
+            "sku": "QSL-CALADUOLINA",
+            "color": "#F8F6F2"
+          },
+          {
+            "name": "Carrara Marmi",
+            "sku": "QSL-CARMARMI",
+            "color": "#F5F5F5"
+          },
+          {
+            "name": "Carrara Mist",
+            "sku": "QSL-CARRMIST",
+            "color": "#E8E8E8"
+          },
+          {
+            "name": "Carrara Morro",
+            "sku": "QSL-CARMORRO",
+            "color": "#E5E2DE"
+          },
+          {
+            "name": "Fossil Gray",
+            "sku": "QSL-FOSGRY",
+            "color": "#7A7A78"
+          },
+          {
+            "name": "Meridian Gray",
+            "sku": "QSL-MERIGRY",
+            "color": "#686868"
+          },
+          {
+            "name": "Midnight Majesty",
+            "sku": "QSL-MIDMAJ",
+            "color": "#1A1A1A"
+          },
+          {
+            "name": "Mystic Gray",
+            "sku": "QSL-MYSTGRY",
+            "color": "#5C5C5C"
+          },
+          {
+            "name": "Sparkling Black",
+            "sku": "QSL-SPRBLK",
+            "color": "#0A0A0A"
+          },
+          {
+            "name": "Stellar White",
+            "sku": "QSL-STELLARWHT",
+            "color": "#F5F5F5"
+          }
+        ]
+      },
+      {
+        "group": "group3",
+        "label": "Group 3",
+        "price_2cm": 13.15,
+        "price_3cm": 16.4,
+        "color_count": 18,
+        "colors": [
+          {
+            "name": "Alabaster White",
+            "sku": "QSL-ALABWHT",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Bali",
+            "sku": "QSL-CALABALI",
+            "color": "#F5F2EE"
+          },
+          {
+            "name": "Calacatta Classique",
+            "sku": "QSL-CALACLSQUE",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Elysio",
+            "sku": "QSL-CALAELYSIO",
+            "color": "#F8F6F2"
+          },
+          {
+            "name": "Calacatta Idillio",
+            "sku": "QSL-CALAIDILLIO",
+            "color": "#F5F2EE"
+          },
+          {
+            "name": "Calacatta Lavasa",
+            "sku": "QSL-CALALAVASA",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Sierra",
+            "sku": "QSL-CALASIERRA",
+            "color": "#F2F0EC"
+          },
+          {
+            "name": "Calacatta Ultra",
+            "sku": "QSL-CALAULTRA",
+            "color": "#FEFEFE"
+          },
+          {
+            "name": "Calacatta Vicenza",
+            "sku": "QSL-CALVIC",
+            "color": "#F8F5F0"
+          },
+          {
+            "name": "Calacatta Venice",
+            "sku": "QSL-CALAVENICE",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Carrara Lumos",
+            "sku": "QSL-CARLUMOS",
+            "color": "#E8E8E8"
+          },
+          {
+            "name": "Cashmere Taj",
+            "sku": "QSL-CASHTAJ",
+            "color": "#E5E0D8"
+          },
+          {
+            "name": "Concerto",
+            "sku": "QSL-CONCERTO",
+            "color": "#D8D4CC"
+          },
+          {
+            "name": "Fairy White",
+            "sku": "QSL-FAIWHT",
+            "color": "#F8F8F8"
+          },
+          {
+            "name": "Gray Lagoon",
+            "sku": "QSL-GRYLAGOON",
+            "color": "#5A5A5A"
+          },
+          {
+            "name": "Mara Blanca",
+            "sku": "QSL-MARBLNC",
+            "color": "#F5F2EE"
+          },
+          {
+            "name": "Montclair White",
+            "sku": "QSL-MONTCLRWHT",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "New Calacatta Laza",
+            "sku": "QSL-NEWCALALAZA",
+            "color": "#FAFAFA"
+          }
+        ]
+      },
+      {
+        "group": "group4",
+        "label": "Group 4",
+        "price_2cm": 15,
+        "price_3cm": 19,
+        "color_count": 14,
+        "colors": [
+          {
+            "name": "Babylon Gray",
+            "sku": "QSL-BABYLONGRY",
+            "color": "#4A4A4A"
+          },
+          {
+            "name": "Blanca Arabescato",
+            "sku": "QSL-BLANARA",
+            "color": "#F5F2EE"
+          },
+          {
+            "name": "Blanca Statuarietto",
+            "sku": "QSL-BLANSTAT",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Adonia",
+            "sku": "QSL-CALAADONIA",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Botanica",
+            "sku": "QSL-CALABOTNICA",
+            "color": "#F5F2EE"
+          },
+          {
+            "name": "Calacatta Karmelo",
+            "sku": "QSL-CALAKARMELO",
+            "color": "#FAF5F0"
+          },
+          {
+            "name": "Calacatta Laza",
+            "sku": "QSL-CALALAZA",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Leon",
+            "sku": "QSL-CALALEON",
+            "color": "#F8F5F0"
+          },
+          {
+            "name": "Calacatta Prado",
+            "sku": "QSL-CALAPRADO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Cashmere Carrara",
+            "sku": "QSL-CASHCARR",
+            "color": "#E8E5E0"
+          },
+          {
+            "name": "Perla White",
+            "sku": "QSL-PERWHT",
+            "color": "#F0ECE5"
+          },
+          {
+            "name": "Premium Plus White",
+            "sku": "QSL-PREPLUWHT",
+            "color": "#FEFEFE"
+          },
+          {
+            "name": "Soapstone Metropolis",
+            "sku": "QSL-SPSTNMETROPOLIS",
+            "color": "#505050"
+          },
+          {
+            "name": "Soapstone Mist",
+            "sku": "QSL-SPSTNMIST",
+            "color": "#686868"
+          }
+        ]
+      },
+      {
+        "group": "group5",
+        "label": "Group 5",
+        "price_2cm": 17,
+        "price_3cm": 21.4,
+        "color_count": 14,
+        "colors": [
+          {
+            "name": "Calacatta Delios",
+            "sku": "QSL-CALADELIOS",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Laza Book-Match",
+            "sku": "QSL-CALALAZA-BK",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Leon Gold",
+            "sku": "QSL-CALALEONGOLD",
+            "color": "#FAF5E8"
+          },
+          {
+            "name": "Calacatta Monaco",
+            "sku": "QSL-CALAMONACO",
+            "color": "#F8F5F0"
+          },
+          {
+            "name": "Calacatta Montage",
+            "sku": "QSL-CALAMONTAGE",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Chakra Beige",
+            "sku": "QSL-CHAKBEI",
+            "color": "#D8D0C4"
+          },
+          {
+            "name": "Galant Gray",
+            "sku": "QSL-GALANTGRAY",
+            "color": "#6A6A6A"
+          },
+          {
+            "name": "Glacier White",
+            "sku": "QSL-GLACIERWHT",
+            "color": "#F8F8F8"
+          },
+          {
+            "name": "Marquina Midnight",
+            "sku": "QSL-MARQMID",
+            "color": "#1A1A1A"
+          },
+          {
+            "name": "Midnight Corvo",
+            "sku": "QSL-MIDCORVO",
+            "color": "#0A0A0A"
+          },
+          {
+            "name": "Portico Cream",
+            "sku": "QSL-PORTCRM",
+            "color": "#E8E0D4"
+          },
+          {
+            "name": "Rolling Fog",
+            "sku": "QSL-ROLLFOG",
+            "color": "#A8A8A8"
+          },
+          {
+            "name": "Smoked Pearl",
+            "sku": "QSL-SMKPEARL",
+            "color": "#8A8A8A"
+          },
+          {
+            "name": "Statuary Classique",
+            "sku": "QSL-STACLSQUE",
+            "color": "#FAFAFA"
+          }
+        ]
+      },
+      {
+        "group": "group6",
+        "label": "Group 6",
+        "price_2cm": 18,
+        "price_3cm": 23.5,
+        "color_count": 12,
+        "colors": [
+          {
+            "name": "Calacatta Abezzo",
+            "sku": "QSL-CALAABEZZO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Arno",
+            "sku": "QSL-CALAARNO",
+            "color": "#F8F5F0"
+          },
+          {
+            "name": "Calacatta Clara",
+            "sku": "QSL-CALACLARA",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Izaro",
+            "sku": "QSL-CALAIZARO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Laza Grigio",
+            "sku": "QSL-CALALAZAGRIGIO",
+            "color": "#E8E5E0"
+          },
+          {
+            "name": "Calacatta Laza Oro",
+            "sku": "QSL-CALALAZAORO",
+            "color": "#FAF5E8"
+          },
+          {
+            "name": "Calacatta Luccia",
+            "sku": "QSL-CALALUCCIA",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Lumanyx",
+            "sku": "QSL-CALALUMANYX",
+            "color": "#F8F8F8"
+          },
+          {
+            "name": "Calacatta Miraggio",
+            "sku": "QSL-CALAMIRAGGIO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Trevi",
+            "sku": "QSL-CALATREVI",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Valentin",
+            "sku": "QSL-CALAVALENTIN",
+            "color": "#F8F5F0"
+          },
+          {
+            "name": "Vena Carbona",
+            "sku": "QSL-VENCRBONA",
+            "color": "#4A4A4A"
+          }
+        ]
+      },
+      {
+        "group": "group7",
+        "label": "Group 7 - Premium",
+        "price_2cm": 20.75,
+        "price_3cm": 26.4,
+        "color_count": 12,
+        "colors": [
+          {
+            "name": "Calacatta Azai",
+            "sku": "QSL-CALAAZAI",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Cinela",
+            "sku": "QSL-CALACINELA",
+            "color": "#F8F5F0"
+          },
+          {
+            "name": "Calacatta Goa",
+            "sku": "QSL-CALAGOA",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Miraggio Cove",
+            "sku": "QSL-CALAMIRCOVE",
+            "color": "#E8E5E0"
+          },
+          {
+            "name": "Calacatta Miraggio Duo",
+            "sku": "QSL-CALAMIRDUO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Miraggio Cielo",
+            "sku": "QSL-CALAMIRCIELO",
+            "color": "#E0E8F0"
+          },
+          {
+            "name": "Calacatta Miraggio Gold",
+            "sku": "QSL-CALAMIRGOLD",
+            "color": "#FAF5E8"
+          },
+          {
+            "name": "Calacatta Miraggio Sienna",
+            "sku": "QSL-CALAMIRSIENNA",
+            "color": "#E8D8C8"
+          },
+          {
+            "name": "Calacatta Miraggio Seaglass",
+            "sku": "QSL-CALAMIRSEAGLASS",
+            "color": "#D8E8E8"
+          },
+          {
+            "name": "Calacatta Ocellio",
+            "sku": "QSL-CALAOCELLIO",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Calacatta Versailles",
+            "sku": "QSL-CALAVERSA",
+            "color": "#FAFAFA"
+          },
+          {
+            "name": "Calacatta Solessio",
+            "sku": "QSL-CALASOLESSIO",
+            "color": "#F8F5F0"
+          }
+        ]
+      },
+      {
+        "group": "group8",
+        "label": "Group 8 - Ultra Premium",
+        "price_2cm": 21.8,
+        "price_3cm": 29,
+        "color_count": 3,
+        "colors": [
+          {
+            "name": "Azurmatt",
+            "sku": "QSL-AZURMATT",
+            "color": "#4A6B8C"
+          },
+          {
+            "name": "Calacatta Viraldi",
+            "sku": "QSL-CALAVIRALDI",
+            "color": "#FAF8F5"
+          },
+          {
+            "name": "Lumataj",
+            "sku": "QSL-LUMATAJ",
+            "color": "#F5F0E8"
+          }
+        ]
+      }
+    ],
+    "lvt_flooring": [
+      {
+        "series": "comment",
+        "color_count": 0
+      },
+      {
+        "series": "ashton",
+        "label": "Ashton Series",
+        "warranty": "25 year residential",
+        "thickness": "4.4MM",
+        "wear_layer": "6MIL",
+        "price_per_sqft": 1.25,
+        "color_count": 5
+      },
+      {
+        "series": "ashton2",
+        "label": "Ashton 2.0 Series",
+        "warranty": "Lifetime residential, 6 year commercial",
+        "thickness": "4.4MM",
+        "wear_layer": "12MIL",
+        "price_per_sqft": 1.39,
+        "color_count": 5
+      },
+      {
+        "series": "cyrus",
+        "label": "Cyrus Series",
+        "warranty": "Lifetime residential, 10 year commercial",
+        "thickness": "5MM",
+        "wear_layer": "12MIL",
+        "price_per_sqft": 1.55,
+        "color_count": 39
+      },
+      {
+        "series": "cyrus2",
+        "label": "Cyrus 2.0 Series",
+        "warranty": "Lifetime residential, 15 year commercial",
+        "thickness": "5MM",
+        "wear_layer": "20MIL",
+        "price_per_sqft": 1.59,
+        "color_count": 19
+      },
+      {
+        "series": "trecento",
+        "label": "Trecento Series (12x24)",
+        "warranty": "Lifetime residential, 10 year commercial",
+        "thickness": "5MM",
+        "wear_layer": "12MIL",
+        "price_per_sqft": 1.75,
+        "color_count": 10
+      },
+      {
+        "series": "andover",
+        "label": "Andover Series",
+        "warranty": "Lifetime residential, 15 year commercial",
+        "thickness": "5MM",
+        "wear_layer": "20MIL",
+        "price_per_sqft": 1.79,
+        "color_count": 13
+      },
+      {
+        "series": "prescott",
+        "label": "Prescott Series",
+        "warranty": "Lifetime residential, 20 year commercial",
+        "thickness": "6.5MM",
+        "wear_layer": "20MIL",
+        "price_per_sqft": 1.79,
+        "color_count": 39
+      },
+      {
+        "series": "laurel",
+        "label": "Laurel Series (9x48)",
+        "warranty": "Lifetime residential, 15 year commercial",
+        "thickness": "5MM",
+        "wear_layer": "20MIL",
+        "price_per_sqft": 1.69,
+        "color_count": 17
+      },
+      {
+        "series": "laurelReserve",
+        "label": "Laurel Reserve Series",
+        "warranty": "Lifetime residential, 25 year commercial",
+        "thickness": "8MM",
+        "wear_layer": "22MIL",
+        "price_per_sqft": 2.1,
+        "color_count": 17
+      },
+      {
+        "series": "studio",
+        "label": "Studio Collection",
+        "warranty": "Lifetime residential, 30 year commercial",
+        "thickness": "9MM",
+        "wear_layer": "30MIL",
+        "price_per_sqft": 3.39,
+        "color_count": 10
+      },
+      {
+        "series": "wayneParc",
+        "label": "Wayne Parc Collection",
+        "warranty": "Lifetime residential, 25 year commercial",
+        "thickness": "10MM",
+        "wear_layer": "22MIL",
+        "price_per_sqft": 2.59,
+        "color_count": 6
+      },
+      {
+        "series": "wayneParcReserve",
+        "label": "Wayne Parc Reserve",
+        "warranty": "Lifetime residential, 30 year commercial",
+        "thickness": "12MM",
+        "wear_layer": "30MIL",
+        "price_per_sqft": 2.99,
+        "color_count": 6
+      }
+    ]
+  },
+  "daltile": {
+    "brand": "Daltile",
+    "granite": [
+      {
+        "id": "granite-absolute-black",
+        "name": "Absolute Black",
+        "sku": "L75712121L",
+        "price_per_sqft": 10.45,
+        "color": "#0a0a0a",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-african-rainbow",
+        "name": "African Rainbow",
+        "sku": "L79012121L",
+        "price_per_sqft": 16.05,
+        "color": "#8B7355",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-alaska-white",
+        "name": "Alaska White",
+        "sku": "L77612121L",
+        "price_per_sqft": 23.4,
+        "color": "#E8E4E0",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-ambrosia-white",
+        "name": "Ambrosia White",
+        "sku": "L78212121L",
+        "price_per_sqft": 31.45,
+        "color": "#F5F0E8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-azul-platino",
+        "name": "Azul Platino",
+        "sku": "L79412121L",
+        "price_per_sqft": 16.05,
+        "color": "#6B7B8C",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-baltic-brown",
+        "name": "Baltic Brown",
+        "sku": "L75512121L",
+        "price_per_sqft": 10.45,
+        "color": "#5D4037",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-bianco-antico",
+        "name": "Bianco Antico",
+        "sku": "L79912121L",
+        "price_per_sqft": 25.9,
+        "color": "#E0D8D0",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-bianco-romano",
+        "name": "Bianco Romano",
+        "sku": "L80012121L",
+        "price_per_sqft": 16.05,
+        "color": "#E8E0D8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-black-galaxy",
+        "name": "Black Galaxy",
+        "sku": "L76712121L",
+        "price_per_sqft": 10.45,
+        "color": "#1a1a2e",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-black-pearl",
+        "name": "Black Pearl",
+        "sku": "L76612121L",
+        "price_per_sqft": 10.45,
+        "color": "#2d2d3a",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-blue-pearl",
+        "name": "Blue Pearl",
+        "sku": "L75812121L",
+        "price_per_sqft": 16.05,
+        "color": "#3d4f6b",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-cafe-imperial",
+        "name": "Cafe Imperial",
+        "sku": "L79612121L",
+        "price_per_sqft": 16.05,
+        "color": "#6B5344",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-caledonia",
+        "name": "Caledonia",
+        "sku": "L78012121L",
+        "price_per_sqft": 10.45,
+        "color": "#5C5C5C",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-colonial-white",
+        "name": "Colonial White",
+        "sku": "L79512121L",
+        "price_per_sqft": 23.4,
+        "color": "#F0EBE5",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-delicatus-white",
+        "name": "Delicatus White",
+        "sku": "L80812121L",
+        "price_per_sqft": 31.45,
+        "color": "#FAF8F5",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-fantasy-brown",
+        "name": "Fantasy Brown",
+        "sku": "L81212121L",
+        "price_per_sqft": 25.9,
+        "color": "#C4B7A6",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-giallo-napoli",
+        "name": "Giallo Napoli",
+        "sku": "L81312121L",
+        "price_per_sqft": 23.4,
+        "color": "#D4C4A8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-giallo-ornamental",
+        "name": "Giallo Ornamental",
+        "sku": "L76012121L",
+        "price_per_sqft": 10.45,
+        "color": "#C9B896",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-giallo-vitoria",
+        "name": "Giallo Vitoria",
+        "sku": "L80512121L",
+        "price_per_sqft": 16.05,
+        "color": "#D8C8A0",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-golden-crema",
+        "name": "Golden Crema",
+        "sku": "L80212121L",
+        "price_per_sqft": 10.45,
+        "color": "#E8D8C0",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-golden-leaf",
+        "name": "Golden Leaf",
+        "sku": "L81012121L",
+        "price_per_sqft": 16.05,
+        "color": "#D4B896",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-ivory-fantasy",
+        "name": "Ivory Fantasy",
+        "sku": "L81612121L",
+        "price_per_sqft": 16.05,
+        "color": "#F0E8D8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-luna-pearl",
+        "name": "Luna Pearl",
+        "sku": "L75912121L",
+        "price_per_sqft": 10.45,
+        "color": "#A8A8B0",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-mombasa",
+        "name": "Mombasa",
+        "sku": "L81412121L",
+        "price_per_sqft": 10.45,
+        "color": "#4A4A48",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-moon-white",
+        "name": "Moon White",
+        "sku": "L80112121L",
+        "price_per_sqft": 10.45,
+        "color": "#E0E0E0",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-new-venetian-gold",
+        "name": "New Venetian Gold",
+        "sku": "L76112121L",
+        "price_per_sqft": 10.45,
+        "color": "#D4B878",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-ornamental-white",
+        "name": "Ornamental White",
+        "sku": "L80912121L",
+        "price_per_sqft": 23.4,
+        "color": "#F5F0E8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-river-white",
+        "name": "River White",
+        "sku": "L80712121L",
+        "price_per_sqft": 23.4,
+        "color": "#F0EBE5",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-rosa-beta",
+        "name": "Rosa Beta",
+        "sku": "L76412121L",
+        "price_per_sqft": 5.8,
+        "color": "#D4A8A8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-santa-cecilia",
+        "name": "Santa Cecilia",
+        "sku": "L76212121L",
+        "price_per_sqft": 10.45,
+        "color": "#C8A878",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-sapphire-blue",
+        "name": "Sapphire Blue",
+        "sku": "L79212121L",
+        "price_per_sqft": 16.05,
+        "color": "#2E4A62",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-silver-cloud",
+        "name": "Silver Cloud",
+        "sku": "L79712121L",
+        "price_per_sqft": 10.45,
+        "color": "#B0B0B8",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-snowfall",
+        "name": "Snowfall",
+        "sku": "L81512121L",
+        "price_per_sqft": 25.9,
+        "color": "#FAFAFA",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-steel-grey",
+        "name": "Steel Grey",
+        "sku": "L78512121L",
+        "price_per_sqft": 10.45,
+        "color": "#6B6B6B",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-tan-brown",
+        "name": "Tan Brown",
+        "sku": "L75612121L",
+        "price_per_sqft": 10.45,
+        "color": "#6B4A3A",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-typhoon-bordeaux",
+        "name": "Typhoon Bordeaux",
+        "sku": "L79812121L",
+        "price_per_sqft": 25.9,
+        "color": "#8B4A4A",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-uba-tuba",
+        "name": "Uba Tuba",
+        "sku": "L76312121L",
+        "price_per_sqft": 5.8,
+        "color": "#2A3A2A",
+        "finish": "Polished"
+      },
+      {
+        "id": "granite-white-ice",
+        "name": "White Ice",
+        "sku": "L81112121L",
+        "price_per_sqft": 23.4,
+        "color": "#F8F8F8",
+        "finish": "Polished"
+      }
+    ],
+    "quartz": [
+      {
+        "id": "quartz-aalto",
+        "name": "Aalto",
+        "sku": "NQ93",
+        "price_per_sqft": 21.15,
+        "color": "#E8E4E0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-alabaster-white",
+        "name": "Alabaster White",
+        "sku": "NQ90",
+        "price_per_sqft": 7.9,
+        "color": "#FAF8F5",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-arctic",
+        "name": "Arctic",
+        "sku": "NQ62",
+        "price_per_sqft": 21.15,
+        "color": "#F0F0F0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-ash-grey",
+        "name": "Ash Grey",
+        "sku": "NQ57",
+        "price_per_sqft": 12.6,
+        "color": "#9E9E9E",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-bento",
+        "name": "Bento",
+        "sku": "NQ30",
+        "price_per_sqft": 21.15,
+        "color": "#D4C8BC",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-calcutta-vicenza",
+        "name": "Calcutta Vicenza",
+        "sku": "NQ08",
+        "price_per_sqft": 25.5,
+        "color": "#F5F0E8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-calacatta-laza",
+        "name": "Calacatta Laza",
+        "sku": "NQ73",
+        "price_per_sqft": 34.6,
+        "color": "#FAFAFA",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-carrara-mist",
+        "name": "Carrara Mist",
+        "sku": "NQ64",
+        "price_per_sqft": 21.15,
+        "color": "#F5F5F5",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-crystalline",
+        "name": "Crystalline",
+        "sku": "NQ60",
+        "price_per_sqft": 21.15,
+        "color": "#E8E8E8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-empire-grey",
+        "name": "Empire Grey",
+        "sku": "NQ96",
+        "price_per_sqft": 21.15,
+        "color": "#6B6B70",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-frost-white",
+        "name": "Frost White",
+        "sku": "NQ01",
+        "price_per_sqft": 12.6,
+        "color": "#FFFFFF",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-gardenia-white",
+        "name": "Gardenia White",
+        "sku": "NQ09",
+        "price_per_sqft": 12.6,
+        "color": "#FCFCFC",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-iced-white",
+        "name": "Iced White",
+        "sku": "NQ67",
+        "price_per_sqft": 21.15,
+        "color": "#F8F8F8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-lyra",
+        "name": "Lyra",
+        "sku": "NQ05",
+        "price_per_sqft": 21.15,
+        "color": "#C8C0B8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-marisol",
+        "name": "Marisol",
+        "sku": "NQ97",
+        "price_per_sqft": 21.15,
+        "color": "#E0D8D0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-midnight-majesty",
+        "name": "Midnight Majesty",
+        "sku": "NQ10",
+        "price_per_sqft": 21.15,
+        "color": "#1A1A1A",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-moonshine",
+        "name": "Moonshine",
+        "sku": "NQ94",
+        "price_per_sqft": 21.15,
+        "color": "#E0E0E0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-oyster",
+        "name": "Oyster",
+        "sku": "NQ52",
+        "price_per_sqft": 12.6,
+        "color": "#D8D0C8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-pebble-grey",
+        "name": "Pebble Grey",
+        "sku": "NQ59",
+        "price_per_sqft": 12.6,
+        "color": "#8A8A8A",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-polar",
+        "name": "Polar",
+        "sku": "NQ04",
+        "price_per_sqft": 12.6,
+        "color": "#F0F0F0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-sahara-beige",
+        "name": "Sahara Beige",
+        "sku": "NQ56",
+        "price_per_sqft": 12.6,
+        "color": "#D4C8B8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-sandy-ridge",
+        "name": "Sandy Ridge",
+        "sku": "NQ69",
+        "price_per_sqft": 21.15,
+        "color": "#C8B8A0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-shadow-grey",
+        "name": "Shadow Grey",
+        "sku": "NQ58",
+        "price_per_sqft": 12.6,
+        "color": "#6E6E6E",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-simply-white",
+        "name": "Simply White",
+        "sku": "NQ51",
+        "price_per_sqft": 7.9,
+        "color": "#FEFEFE",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-smoke",
+        "name": "Smoke",
+        "sku": "NQ03",
+        "price_per_sqft": 12.6,
+        "color": "#4A4A4A",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-snow-drift",
+        "name": "Snow Drift",
+        "sku": "NQ72",
+        "price_per_sqft": 21.15,
+        "color": "#FAFAFA",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-sparkling-white",
+        "name": "Sparkling White",
+        "sku": "NQ02",
+        "price_per_sqft": 12.6,
+        "color": "#F8F8F8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-sterling",
+        "name": "Sterling",
+        "sku": "NQ76",
+        "price_per_sqft": 21.15,
+        "color": "#A8A8A8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-urban-putty",
+        "name": "Urban Putty",
+        "sku": "NQ54",
+        "price_per_sqft": 12.6,
+        "color": "#B8B0A8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartz-white-lace",
+        "name": "White Lace",
+        "sku": "NQ79",
+        "price_per_sqft": 21.15,
+        "color": "#F5F5F0",
+        "finish": "Polished"
+      }
+    ],
+    "quartzite": [
+      {
+        "id": "quartzite-allure",
+        "name": "Allure",
+        "sku": "L02712121L",
+        "price_per_sqft": 39.85,
+        "color": "#E8E4E0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-azul-macaubas",
+        "name": "Azul Macaubas",
+        "sku": "L02512121L",
+        "price_per_sqft": 39.85,
+        "color": "#4A6B8C",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-calacatta-macaubas",
+        "name": "Calacatta Macaubas",
+        "sku": "L02612121L",
+        "price_per_sqft": 39.85,
+        "color": "#FAF8F5",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-fusion",
+        "name": "Fusion",
+        "sku": "L02412121L",
+        "price_per_sqft": 39.85,
+        "color": "#8B7355",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-madre-perla",
+        "name": "Madre Perla",
+        "sku": "L02812121L",
+        "price_per_sqft": 31.2,
+        "color": "#F0E8E0",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-sea-pearl",
+        "name": "Sea Pearl",
+        "sku": "L02312121L",
+        "price_per_sqft": 39.85,
+        "color": "#D8E0E8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-super-white",
+        "name": "Super White",
+        "sku": "L02212121L",
+        "price_per_sqft": 39.85,
+        "color": "#FEFEFE",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-taj-mahal",
+        "name": "Taj Mahal",
+        "sku": "L02112121L",
+        "price_per_sqft": 39.85,
+        "color": "#F5F0E8",
+        "finish": "Polished"
+      },
+      {
+        "id": "quartzite-white-macaubas",
+        "name": "White Macaubas",
+        "sku": "L02012121L",
+        "price_per_sqft": 39.85,
+        "color": "#FCFCFC",
+        "finish": "Polished"
+      }
+    ],
+    "price_tiers": {
+      "budget": {
+        "min": 5.8,
+        "max": 12.6,
+        "label": "Budget-Friendly"
+      },
+      "popular": {
+        "min": 12.6,
+        "max": 25.9,
+        "label": "Popular Choice"
+      },
+      "premium": {
+        "min": 25.9,
+        "max": 39.85,
+        "label": "Premium"
+      }
+    }
+  },
+  "general_tiers": {
+    "budget": {
+      "min": 5,
+      "max": 20,
+      "label": "Budget-Friendly",
+      "description": "Entry-level granite and basic quartz"
+    },
+    "mid": {
+      "min": 20,
+      "max": 40,
+      "label": "Popular Choice",
+      "description": "Premium granite, mid-tier quartz, basic marble"
+    },
+    "premium": {
+      "min": 40,
+      "max": 70,
+      "label": "Premium",
+      "description": "Luxury quartz, marble, quartzite"
+    },
+    "luxury": {
+      "min": 70,
+      "max": 150,
+      "label": "Ultra-Luxury",
+      "description": "Exotic quartzite, rare marble, designer surfaces"
+    }
+  }
+}

@@ -55,6 +55,13 @@ export default function LoginScreen() {
       return;
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -176,7 +183,7 @@ export default function LoginScreen() {
                 borderRadius: 12,
                 paddingVertical: 16,
                 alignItems: 'center',
-                marginBottom: 24,
+                marginBottom: 12,
                 backgroundColor: '#ffffff',
                 borderWidth: 1,
                 borderColor: colors.border.main,

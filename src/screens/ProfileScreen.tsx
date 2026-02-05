@@ -172,7 +172,7 @@ export default function ProfileScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             updateUser({
               integrations: {
-                ...user?.integrations,
+                ...(user?.integrations || {}),
                 shopify: { connected: true, connectedAt: new Date().toISOString() }
               }
             });
@@ -195,7 +195,7 @@ export default function ProfileScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             updateUser({
               integrations: {
-                ...user?.integrations,
+                ...(user?.integrations || {}),
                 slack: { connected: true, connectedAt: new Date().toISOString(), channel: "#remodely-leads" }
               }
             });
@@ -218,7 +218,7 @@ export default function ProfileScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             updateUser({
               integrations: {
-                ...user?.integrations,
+                ...(user?.integrations || {}),
                 googleCalendar: { connected: true, connectedAt: new Date().toISOString() }
               }
             });
@@ -241,7 +241,7 @@ export default function ProfileScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             updateUser({
               integrations: {
-                ...user?.integrations,
+                ...(user?.integrations || {}),
                 stripe: { connected: true, connectedAt: new Date().toISOString() }
               }
             });
@@ -365,7 +365,7 @@ export default function ProfileScreen() {
       iconBg: '#06b6d4',
       title: "Smart Measurement",
       subtitle: `${myMeasurements.length} saved measurements`,
-      onPress: () => navigation.navigate('Measure' as any),
+      onPress: () => navigation.navigate('MeasurementHome' as any),
     },
     {
       icon: "map",

@@ -82,7 +82,7 @@ export const faqData: FAQItem[] = [
   {
     id: "faq-12",
     question: "How do I report a problem?",
-    answer: "You can report issues through:\n\n1. Profile → Help & Support → Report an Issue\n2. Tap the flag icon on any listing\n3. Email support@surprisegranite.com\n\nInclude details like listing ID, screenshots, and description of the problem. We review all reports within 24 hours.",
+    answer: "You can report issues through:\n\n1. Profile → Help & Support → Report an Issue\n2. Tap the flag icon on any listing\n3. Email support@remodely.ai\n\nInclude details like listing ID, screenshots, and description of the problem. We review all reports within 24 hours.",
     category: "Safety & Trust"
   },
   {

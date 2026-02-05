@@ -249,10 +249,7 @@ export default function RootNavigator() {
           name="ListingDetail"
           component={ListingDetailScreen}
           options={{
-            headerShown: true,
-            headerTitle: "",
-            headerTransparent: true,
-            headerBackTitle: "Back",
+            headerShown: false,
           }}
         />
         <Stack.Screen

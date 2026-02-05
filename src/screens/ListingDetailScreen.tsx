@@ -115,6 +115,7 @@ export default function ListingDetailScreen() {
         <Pressable
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           <Text style={styles.backText}>Back</Text>

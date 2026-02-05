@@ -1,4 +1,4 @@
-// FlipStock App Icon Generator
+// Remodely App Icon Generator
 // Run: node assets/generate-icon.js
 // Requires: npm install canvas
 
@@ -10,109 +10,152 @@ const SIZE = 1024;
 const canvas = createCanvas(SIZE, SIZE);
 const ctx = canvas.getContext('2d');
 
-// Background gradient (teal/green gradient)
-const gradient = ctx.createLinearGradient(0, 0, SIZE, SIZE);
-gradient.addColorStop(0, '#0D9488');  // teal-600
-gradient.addColorStop(1, '#115E59');  // teal-800
-ctx.fillStyle = gradient;
-ctx.fillRect(0, 0, SIZE, SIZE);
+// Burnt orange background with rounded corners
+const BURNT_ORANGE = '#FF6B35';
+const DARK_ORANGE = '#E55A2B';
+const cornerRadius = 180;
 
-// Draw stylized "F" with an arrow (flip concept)
+// Draw rounded rectangle background
+ctx.beginPath();
+ctx.moveTo(cornerRadius, 0);
+ctx.lineTo(SIZE - cornerRadius, 0);
+ctx.quadraticCurveTo(SIZE, 0, SIZE, cornerRadius);
+ctx.lineTo(SIZE, SIZE - cornerRadius);
+ctx.quadraticCurveTo(SIZE, SIZE, SIZE - cornerRadius, SIZE);
+ctx.lineTo(cornerRadius, SIZE);
+ctx.quadraticCurveTo(0, SIZE, 0, SIZE - cornerRadius);
+ctx.lineTo(0, cornerRadius);
+ctx.quadraticCurveTo(0, 0, cornerRadius, 0);
+ctx.closePath();
+ctx.fillStyle = BURNT_ORANGE;
+ctx.fill();
+
+// Draw shadow for house
+ctx.fillStyle = DARK_ORANGE;
+ctx.globalAlpha = 0.4;
+ctx.beginPath();
+ctx.moveTo(512, 215);
+ctx.lineTo(210, 490);
+ctx.lineTo(290, 490);
+ctx.lineTo(290, 810);
+ctx.lineTo(754, 810);
+ctx.lineTo(754, 490);
+ctx.lineTo(834, 490);
+ctx.closePath();
+ctx.fill();
+ctx.globalAlpha = 1.0;
+
+// Draw house shape - white
 ctx.fillStyle = '#ffffff';
+ctx.beginPath();
+ctx.moveTo(512, 200);
+ctx.lineTo(200, 480);
+ctx.lineTo(280, 480);
+ctx.lineTo(280, 800);
+ctx.lineTo(744, 800);
+ctx.lineTo(744, 480);
+ctx.lineTo(824, 480);
+ctx.closePath();
+ctx.fill();
 
-// Main "F" letter
-const padding = SIZE * 0.15;
-const letterWidth = SIZE * 0.5;
-const letterHeight = SIZE * 0.7;
-const strokeWidth = SIZE * 0.12;
-const startX = (SIZE - letterWidth) / 2;
-const startY = (SIZE - letterHeight) / 2;
+// Chimney
+ctx.beginPath();
+ctx.roundRect(620, 280, 60, 120, 4);
+ctx.fill();
 
-// Vertical bar of F
-ctx.fillRect(startX, startY, strokeWidth, letterHeight);
+// Door - burnt orange
+ctx.fillStyle = BURNT_ORANGE;
+ctx.beginPath();
+ctx.roundRect(452, 580, 120, 220, 8);
+ctx.fill();
 
-// Top horizontal bar of F
-ctx.fillRect(startX, startY, letterWidth, strokeWidth);
+// Door knob - white
+ctx.fillStyle = '#ffffff';
+ctx.beginPath();
+ctx.arc(540, 700, 12, 0, Math.PI * 2);
+ctx.fill();
 
-// Middle horizontal bar of F (shorter)
-ctx.fillRect(startX, startY + letterHeight * 0.4, letterWidth * 0.7, strokeWidth);
+// Windows - burnt orange
+ctx.fillStyle = BURNT_ORANGE;
+ctx.beginPath();
+ctx.roundRect(310, 520, 100, 100, 6);
+ctx.fill();
+ctx.beginPath();
+ctx.roundRect(614, 520, 100, 100, 6);
+ctx.fill();
 
-// Draw circular arrows around the F (flip/recycle concept)
+// Window panes - white
 ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = SIZE * 0.04;
-ctx.lineCap = 'round';
+ctx.lineWidth = 4;
 
-// Top-right arrow curve
+// Left window panes
 ctx.beginPath();
-ctx.arc(SIZE * 0.75, SIZE * 0.25, SIZE * 0.1, Math.PI * 1.5, Math.PI * 0.5, false);
+ctx.moveTo(360, 520);
+ctx.lineTo(360, 620);
+ctx.stroke();
+ctx.beginPath();
+ctx.moveTo(310, 570);
+ctx.lineTo(410, 570);
 ctx.stroke();
 
-// Arrow head top-right
-ctx.fillStyle = '#ffffff';
+// Right window panes
 ctx.beginPath();
-ctx.moveTo(SIZE * 0.85, SIZE * 0.25);
-ctx.lineTo(SIZE * 0.78, SIZE * 0.18);
-ctx.lineTo(SIZE * 0.78, SIZE * 0.32);
-ctx.closePath();
-ctx.fill();
-
-// Bottom-left arrow curve
-ctx.beginPath();
-ctx.arc(SIZE * 0.25, SIZE * 0.75, SIZE * 0.1, Math.PI * 0.5, Math.PI * 1.5, false);
+ctx.moveTo(664, 520);
+ctx.lineTo(664, 620);
 ctx.stroke();
-
-// Arrow head bottom-left
 ctx.beginPath();
-ctx.moveTo(SIZE * 0.15, SIZE * 0.75);
-ctx.lineTo(SIZE * 0.22, SIZE * 0.68);
-ctx.lineTo(SIZE * 0.22, SIZE * 0.82);
-ctx.closePath();
-ctx.fill();
+ctx.moveTo(614, 570);
+ctx.lineTo(714, 570);
+ctx.stroke();
 
 // Save PNG
 const buffer = canvas.toBuffer('image/png');
 fs.writeFileSync(path.join(__dirname, 'icon.png'), buffer);
 console.log('Icon generated: assets/icon.png (1024x1024)');
 
-// Create adaptive icon (foreground only)
+// Create adaptive icon (white house on transparent for Android)
 const adaptiveCanvas = createCanvas(SIZE, SIZE);
 const adaptiveCtx = adaptiveCanvas.getContext('2d');
-
-// Transparent background for adaptive icon
 adaptiveCtx.clearRect(0, 0, SIZE, SIZE);
 
-// Same F and arrows but white on transparent
+// Draw white house on transparent background
 adaptiveCtx.fillStyle = '#ffffff';
-adaptiveCtx.fillRect(startX, startY, strokeWidth, letterHeight);
-adaptiveCtx.fillRect(startX, startY, letterWidth, strokeWidth);
-adaptiveCtx.fillRect(startX, startY + letterHeight * 0.4, letterWidth * 0.7, strokeWidth);
+adaptiveCtx.beginPath();
+adaptiveCtx.moveTo(512, 200);
+adaptiveCtx.lineTo(200, 480);
+adaptiveCtx.lineTo(280, 480);
+adaptiveCtx.lineTo(280, 800);
+adaptiveCtx.lineTo(744, 800);
+adaptiveCtx.lineTo(744, 480);
+adaptiveCtx.lineTo(824, 480);
+adaptiveCtx.closePath();
+adaptiveCtx.fill();
 
+// Chimney
+adaptiveCtx.beginPath();
+adaptiveCtx.roundRect(620, 280, 60, 120, 4);
+adaptiveCtx.fill();
+
+// Door outline
 adaptiveCtx.strokeStyle = '#ffffff';
-adaptiveCtx.lineWidth = SIZE * 0.04;
-adaptiveCtx.lineCap = 'round';
-
+adaptiveCtx.lineWidth = 8;
 adaptiveCtx.beginPath();
-adaptiveCtx.arc(SIZE * 0.75, SIZE * 0.25, SIZE * 0.1, Math.PI * 1.5, Math.PI * 0.5, false);
+adaptiveCtx.roundRect(452, 580, 120, 220, 8);
 adaptiveCtx.stroke();
 
+// Door knob
 adaptiveCtx.fillStyle = '#ffffff';
 adaptiveCtx.beginPath();
-adaptiveCtx.moveTo(SIZE * 0.85, SIZE * 0.25);
-adaptiveCtx.lineTo(SIZE * 0.78, SIZE * 0.18);
-adaptiveCtx.lineTo(SIZE * 0.78, SIZE * 0.32);
-adaptiveCtx.closePath();
+adaptiveCtx.arc(540, 700, 12, 0, Math.PI * 2);
 adaptiveCtx.fill();
 
+// Windows outline
 adaptiveCtx.beginPath();
-adaptiveCtx.arc(SIZE * 0.25, SIZE * 0.75, SIZE * 0.1, Math.PI * 0.5, Math.PI * 1.5, false);
+adaptiveCtx.roundRect(310, 520, 100, 100, 6);
 adaptiveCtx.stroke();
-
 adaptiveCtx.beginPath();
-adaptiveCtx.moveTo(SIZE * 0.15, SIZE * 0.75);
-adaptiveCtx.lineTo(SIZE * 0.22, SIZE * 0.68);
-adaptiveCtx.lineTo(SIZE * 0.22, SIZE * 0.82);
-adaptiveCtx.closePath();
-adaptiveCtx.fill();
+adaptiveCtx.roundRect(614, 520, 100, 100, 6);
+adaptiveCtx.stroke();
 
 const adaptiveBuffer = adaptiveCanvas.toBuffer('image/png');
 fs.writeFileSync(path.join(__dirname, 'adaptive-icon.png'), adaptiveBuffer);

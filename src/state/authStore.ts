@@ -4,8 +4,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User } from "../types/marketplace";
 import { API_CONFIG } from "../config/env";
 
-// Enable mock auth for testing without backend
-const USE_MOCK_AUTH = true;
+// PRODUCTION: Set to false for real authentication
+// Only set to true for local development without backend
+const USE_MOCK_AUTH = false;
 
 // Mock user for testing
 const MOCK_USER: User = {
@@ -25,6 +26,12 @@ const MOCK_USER: User = {
   businessName: undefined,
   verified: true,
   adCredits: 5,
+  integrations: {
+    shopify: undefined,
+    slack: undefined,
+    googleCalendar: undefined,
+    stripe: undefined,
+  },
 };
 
 // Project types for matching with contractors

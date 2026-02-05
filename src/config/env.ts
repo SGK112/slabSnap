@@ -92,6 +92,20 @@ export const VIBECODE_CONFIG = {
 };
 
 /**
+ * Shopify Configuration
+ */
+export const SHOPIFY_CONFIG = {
+  apiKey: getEnvVar('EXPO_PUBLIC_SHOPIFY_API_KEY'),
+  apiSecret: getEnvVar('EXPO_PUBLIC_SHOPIFY_API_SECRET'),
+  scopes: 'read_products,read_orders,read_inventory',
+  redirectUri: getEnvVar('EXPO_PUBLIC_SHOPIFY_REDIRECT_URI') || 'https://voiceflow-crm.onrender.com/api/shopify/callback',
+  useDemoMode: getEnvVar('EXPO_PUBLIC_SHOPIFY_DEMO_MODE') !== 'false', // Default to demo mode
+  get isConfigured() {
+    return isValidApiKey(this.apiKey) && isValidApiKey(this.apiSecret);
+  },
+};
+
+/**
  * API Configuration
  */
 export const API_CONFIG = {
@@ -175,6 +189,7 @@ export default {
   VIBECODE: VIBECODE_CONFIG,
   MAPS: MAPS_CONFIG,
   STRIPE: STRIPE_CONFIG,
+  SHOPIFY: SHOPIFY_CONFIG,
   API: API_CONFIG,
   ENV: APP_ENV,
   FEATURES,

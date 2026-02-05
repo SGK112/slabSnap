@@ -1,0 +1,331 @@
+{
+  "version": "1.0",
+  "generated": "2026-02-04T21:40:49.718Z",
+  "source": "Surprise Granite Pro Network",
+  "vendorCount": 12,
+  "vendors": [
+    {
+      "id": "sg-main",
+      "company_name": "Surprise Granite",
+      "type": "fabricator",
+      "location": {
+        "address": "11560 N. Dysart Rd.",
+        "city": "Surprise",
+        "state": "AZ",
+        "zip": "85379",
+        "lat": 33.6848,
+        "lng": -112.3621
+      },
+      "phone": "(602) 833-3189",
+      "email": "info@surprisegranite.com",
+      "website": "www.surprisegranite.com",
+      "logo_url": "https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=200",
+      "services": [
+        "Granite Fabrication",
+        "Custom Countertops",
+        "Remnants",
+        "Full Slabs",
+        "Installation"
+      ],
+      "rating": 4.9,
+      "review_count": 342,
+      "verified": true,
+      "featured": true
+    },
+    {
+      "id": "msi-phoenix",
+      "company_name": "MSI Surfaces - Phoenix",
+      "type": "stone-supplier",
+      "location": {
+        "address": "4405 W Roosevelt St",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85043",
+        "lat": 33.4484,
+        "lng": -112.1563
+      },
+      "phone": "(602) 393-6330",
+      "email": "phoenix@msisurfaces.com",
+      "website": "www.msisurfaces.com",
+      "logo_url": "https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=200",
+      "services": [
+        "Natural Stone",
+        "Quartz",
+        "Porcelain",
+        "Wholesale",
+        "Pro Network Partner"
+      ],
+      "rating": 5,
+      "review_count": 428,
+      "verified": true,
+      "featured": true
+    },
+    {
+      "id": "cosentino-tempe",
+      "company_name": "Cosentino - Tempe",
+      "type": "stone-supplier",
+      "location": {
+        "address": "8307 S Priest Dr",
+        "city": "Tempe",
+        "state": "AZ",
+        "zip": "85284",
+        "lat": 33.3426,
+        "lng": -111.9705
+      },
+      "phone": "(480) 763-9400",
+      "email": "tempe@cosentino.com",
+      "website": "www.cosentino.com",
+      "logo_url": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200",
+      "services": [
+        "Silestone",
+        "Dekton",
+        "Sensa Granite",
+        "Premium Surfaces"
+      ],
+      "rating": 4.8,
+      "review_count": 521,
+      "verified": true,
+      "featured": true
+    },
+    {
+      "id": "arizona-tile-tempe",
+      "company_name": "Arizona Tile - Tempe",
+      "type": "tile-store",
+      "location": {
+        "address": "8829 S Priest Dr",
+        "city": "Tempe",
+        "state": "AZ",
+        "zip": "85284",
+        "lat": 33.3358,
+        "lng": -111.9706
+      },
+      "phone": "(480) 893-9393",
+      "email": "tempe@arizonatile.com",
+      "website": "www.arizonatile.com",
+      "logo_url": "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=200",
+      "services": [
+        "Natural Stone",
+        "Tile",
+        "Pavers",
+        "Hardscaping",
+        "230+ Varieties"
+      ],
+      "rating": 4.6,
+      "review_count": 387,
+      "verified": true
+    },
+    {
+      "id": "the-yard-az",
+      "company_name": "The Yard AZ",
+      "type": "stone-supplier",
+      "location": {
+        "address": "2334 W Lone Cactus Dr",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85027",
+        "lat": 33.6912,
+        "lng": -112.1054
+      },
+      "phone": "(602) 633-9273",
+      "email": "info@theyardaz.com",
+      "website": "www.theyardaz.com",
+      "logo_url": "https://images.unsplash.com/photo-1615971677499-5467cbab01c0?w=200",
+      "services": [
+        "Remnants",
+        "Full Slabs",
+        "Granite",
+        "Marble",
+        "Quartzite",
+        "Discount Pricing"
+      ],
+      "rating": 4.7,
+      "review_count": 215,
+      "verified": true
+    },
+    {
+      "id": "cambria-avondale",
+      "company_name": "Cambria",
+      "type": "stone-supplier",
+      "location": {
+        "address": "1250 N Fairway Dr Building C, Suite 103",
+        "city": "Avondale",
+        "state": "AZ",
+        "zip": "85323",
+        "lat": 33.4439,
+        "lng": -112.3497
+      },
+      "phone": "(623) 471-6872",
+      "email": "avondale@cambriausa.com",
+      "website": "www.cambriausa.com",
+      "logo_url": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200",
+      "services": [
+        "Premium Quartz",
+        "Exclusive Designs",
+        "American Made",
+        "By Appointment"
+      ],
+      "rating": 4.9,
+      "review_count": 412,
+      "verified": true,
+      "featured": true
+    },
+    {
+      "id": "aracruz-granite",
+      "company_name": "Aracruz Granite",
+      "type": "stone-supplier",
+      "location": {
+        "address": "2310 W Sherman St",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85009",
+        "lat": 33.4525,
+        "lng": -112.0932
+      },
+      "phone": "(602) 252-1171",
+      "email": "info@aracruzgranite.com",
+      "website": "www.aracruzgranite.com",
+      "logo_url": "https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?w=200",
+      "services": [
+        "Granite Slabs",
+        "Quartzite",
+        "Natural Stone",
+        "Wholesale"
+      ],
+      "rating": 4.7,
+      "review_count": 156,
+      "verified": true
+    },
+    {
+      "id": "architectural-surfaces",
+      "company_name": "Architectural Surfaces",
+      "type": "stone-supplier",
+      "location": {
+        "address": "9175 E Pima Center Pkwy suite a-1",
+        "city": "Scottsdale",
+        "state": "AZ",
+        "zip": "85258",
+        "lat": 33.6424,
+        "lng": -111.8902
+      },
+      "phone": "(480) 210-3570",
+      "email": "scottsdale@architecturalsurfaces.com",
+      "website": "www.architecturalsurfaces.com",
+      "logo_url": "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=200",
+      "services": [
+        "Imported Stone",
+        "Quartz",
+        "Tile",
+        "35 National Showrooms"
+      ],
+      "rating": 4.5,
+      "review_count": 298,
+      "verified": true
+    },
+    {
+      "id": "unique-design-solutions",
+      "company_name": "Unique Design Solutions",
+      "type": "tile-store",
+      "location": {
+        "address": "2514 E Mohawk Ln # 101",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85050",
+        "lat": 33.5706,
+        "lng": -112.0336
+      },
+      "phone": "(602) 971-3166",
+      "email": "info@uniquedesignsolutions.com",
+      "website": "www.uniquedesignsolutions.com",
+      "logo_url": "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=200",
+      "services": [
+        "Ceramic Tile",
+        "Porcelain Tile",
+        "Glass Tile",
+        "Custom Designs",
+        "Pro Network Partner"
+      ],
+      "rating": 5,
+      "review_count": 186,
+      "verified": true,
+      "featured": true
+    },
+    {
+      "id": "emser-tile",
+      "company_name": "Emser Tile",
+      "type": "tile-store",
+      "location": {
+        "address": "2604 S 38th St",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85034",
+        "lat": 33.4278,
+        "lng": -111.9965
+      },
+      "phone": "(602) 263-8453",
+      "email": "phoenix@emser.com",
+      "website": "www.emser.com",
+      "logo_url": "https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?w=200",
+      "services": [
+        "Ceramic Tile",
+        "Porcelain Tile",
+        "Natural Stone",
+        "Commercial Projects"
+      ],
+      "rating": 4.6,
+      "review_count": 342,
+      "verified": true
+    },
+    {
+      "id": "villagio-tile",
+      "company_name": "Villagio Tile & Stone",
+      "type": "tile-store",
+      "location": {
+        "address": "8340 E Raintree Dr",
+        "city": "Scottsdale",
+        "state": "AZ",
+        "zip": "85260",
+        "lat": 33.6153,
+        "lng": -111.8911
+      },
+      "phone": "(480) 422-6700",
+      "email": "info@villagiotile.com",
+      "website": "www.villagiotile.com",
+      "logo_url": "https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=200",
+      "services": [
+        "Natural Stone",
+        "Porcelain Tiles",
+        "Custom Design",
+        "Premier Showroom"
+      ],
+      "rating": 4.8,
+      "review_count": 289,
+      "verified": true
+    },
+    {
+      "id": "cactus-stone-tile",
+      "company_name": "Cactus Stone & Tile",
+      "type": "stone-supplier",
+      "location": {
+        "address": "5005 E Madison St",
+        "city": "Phoenix",
+        "state": "AZ",
+        "zip": "85034",
+        "lat": 33.4655,
+        "lng": -111.9818
+      },
+      "phone": "(602) 914-2202",
+      "email": "info@cactusstone.com",
+      "website": "www.cactusstone.com",
+      "logo_url": "https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?w=200",
+      "services": [
+        "Wholesale Tile",
+        "Natural Stone Slabs",
+        "Granite",
+        "Marble"
+      ],
+      "rating": 4.7,
+      "review_count": 256,
+      "verified": true
+    }
+  ]
+}

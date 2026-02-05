@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Blue background (Google blue) with rounded corners -->
-  <rect width="1024" height="1024" rx="180" fill="#4285F4"/>
+  <!-- Burnt orange background with rounded corners -->
+  <rect width="1024" height="1024" rx="180" fill="#FF6B35"/>
 
   <!-- Subtle shadow for depth -->
   <path d="M 512 215 L 210 490 L 290 490 L 290 810 L 754 810 L 754 490 L 834 490 Z"
-        fill="#3367D6" opacity="0.4"/>
+        fill="#E55A2B" opacity="0.4"/>
 
   <!-- House shape - white -->
   <path d="M 512 200 L 200 480 L 280 480 L 280 800 L 744 800 L 744 480 L 824 480 Z"
@@ -14,16 +14,16 @@
   <rect x="620" y="280" width="60" height="120" rx="4" fill="#ffffff"/>
 
   <!-- Door -->
-  <rect x="452" y="580" width="120" height="220" rx="8" fill="#4285F4"/>
+  <rect x="452" y="580" width="120" height="220" rx="8" fill="#FF6B35"/>
 
   <!-- Door knob -->
   <circle cx="540" cy="700" r="12" fill="#ffffff"/>
 
   <!-- Window left -->
-  <rect x="310" y="520" width="100" height="100" rx="6" fill="#4285F4"/>
+  <rect x="310" y="520" width="100" height="100" rx="6" fill="#FF6B35"/>
 
   <!-- Window right -->
-  <rect x="614" y="520" width="100" height="100" rx="6" fill="#4285F4"/>
+  <rect x="614" y="520" width="100" height="100" rx="6" fill="#FF6B35"/>
 
   <!-- Window panes - left -->
   <line x1="360" y1="520" x2="360" y2="620" stroke="#ffffff" stroke-width="4"/>

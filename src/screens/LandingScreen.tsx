@@ -186,7 +186,7 @@ export default function LandingScreen({ navigation }: any) {
                   <Pressable
                     key={type.id}
                     style={styles.userTypeCard}
-                    onPress={() => navigation.navigate("MainTabs")}
+                    onPress={() => navigation.navigate("Signup")}
                   >
                     <View style={styles.userTypeIconContainer}>
                       <Ionicons
@@ -210,7 +210,7 @@ export default function LandingScreen({ navigation }: any) {
                   <Pressable
                     key={category.id}
                     style={styles.categoryCard}
-                    onPress={() => navigation.navigate("MainTabs")}
+                    onPress={() => navigation.navigate("Signup")}
                   >
                     <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '15' }]}>
                       <Ionicons
@@ -229,7 +229,7 @@ export default function LandingScreen({ navigation }: any) {
             <Animated.View style={[styles.previewSection, previewStyle]}>
               <View style={styles.previewHeader}>
                 <Text style={styles.sectionTitle}>Featured Products</Text>
-                <Pressable onPress={() => navigation.navigate("MainTabs")}>
+                <Pressable onPress={() => navigation.navigate("Signup")}>
                   <Text style={styles.seeAllText}>See All</Text>
                 </Pressable>
               </View>
@@ -242,7 +242,7 @@ export default function LandingScreen({ navigation }: any) {
                   <Pressable
                     key={listing.id}
                     style={styles.previewCard}
-                    onPress={() => navigation.navigate("MainTabs")}
+                    onPress={() => navigation.navigate("Signup")}
                   >
                     <LinearGradient
                       colors={listing.gradientColors}
@@ -318,7 +318,7 @@ export default function LandingScreen({ navigation }: any) {
             {/* CTA Button */}
             <Pressable
               style={styles.primaryButton}
-              onPress={() => navigation.navigate("MainTabs")}
+              onPress={() => navigation.navigate("Signup")}
             >
               <Text style={styles.primaryButtonText}>Get Started</Text>
               <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 8 }} />

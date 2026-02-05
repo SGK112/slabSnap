@@ -25,6 +25,7 @@ import { useVendorStore } from "../state/vendorStore";
 import { useAdsStore } from "../state/adsStore";
 import { useNativeAdsStore } from "../state/nativeAdsStore";
 import { useAuthStore, ProjectType } from "../state/authStore";
+import { useVendorCatalogStore } from "../state/vendorCatalogStore";
 import { MaterialCategory, CATEGORY_CONFIG, getCategoryIcon } from "../types/marketplace";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -77,7 +78,23 @@ const STYLE_TO_KEYWORDS: Record<string, string[]> = {
   bohemian: ["bohemian", "eclectic", "colorful", "artisan", "textured"],
 };
 
-// Quick Quote Request Modal - Simple & Powerful Lead Gen
+// Lead type for quote requests
+interface QuoteLead {
+  id: string;
+  projectType: string;
+  name: string;
+  email: string;
+  phone: string;
+  zip: string;
+  projectSize: "small" | "medium" | "large";
+  timeline: "asap" | "1-2weeks" | "1month" | "justlooking";
+  description?: string;
+  createdAt: number;
+  status: "new" | "matched" | "contacted" | "converted";
+  matchedVendors?: string[];
+}
+
+// Quick Quote Request Modal - Enhanced Lead Gen
 const QuoteRequestModal = ({
   visible,
   onClose,
@@ -87,35 +104,106 @@ const QuoteRequestModal = ({
   onClose: () => void;
   vendors: any[];
 }) => {
-  const [projectType, setProjectType] = useState<string>("kitchen");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [zip, setZip] = useState("");
+  const [projectSize, setProjectSize] = useState<"small" | "medium" | "large">("medium");
+  const [timeline, setTimeline] = useState<"asap" | "1-2weeks" | "1month" | "justlooking">("1-2weeks");
+  const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const projectTypes = [
-    { id: "kitchen", label: "Kitchen", icon: "restaurant-outline" as const },
-    { id: "bathroom", label: "Bathroom", icon: "water-outline" as const },
-    { id: "flooring", label: "Flooring", icon: "grid-outline" as const },
-    { id: "outdoor", label: "Outdoor", icon: "leaf-outline" as const },
-    { id: "other", label: "Other", icon: "ellipsis-horizontal" as const },
+  // Services that match the app's offerings - multi-select
+  const serviceOptions = [
+    { id: "countertops", label: "Countertops", icon: "layers-outline" },
+    { id: "cabinets", label: "Cabinets", icon: "cube-outline" },
+    { id: "flooring", label: "Flooring", icon: "grid-outline" },
+    { id: "tile", label: "Tile & Stone", icon: "apps-outline" },
+    { id: "kitchen", label: "Kitchen Remodel", icon: "restaurant-outline" },
+    { id: "bathroom", label: "Bathroom Remodel", icon: "water-outline" },
+    { id: "backsplash", label: "Backsplash", icon: "browsers-outline" },
+    { id: "outdoor", label: "Outdoor/Patio", icon: "leaf-outline" },
+    { id: "lighting", label: "Lighting", icon: "bulb-outline" },
+    { id: "plumbing", label: "Plumbing", icon: "construct-outline" },
   ];
 
-  const handleSubmit = () => {
+  const toggleService = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedServices(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
+
+  const projectSizes = [
+    { id: "small", label: "Small", desc: "Under $5K", icon: "resize-outline" },
+    { id: "medium", label: "Medium", desc: "$5K-$15K", icon: "expand-outline" },
+    { id: "large", label: "Large", desc: "$15K+", icon: "cube-outline" },
+  ];
+
+  const timelines = [
+    { id: "asap", label: "ASAP", desc: "Ready now", color: "#ef4444" },
+    { id: "1-2weeks", label: "1-2 Weeks", desc: "Soon", color: "#f59e0b" },
+    { id: "1month", label: "1+ Month", desc: "Planning", color: "#3b82f6" },
+    { id: "justlooking", label: "Just Looking", desc: "Exploring", color: "#6b7280" },
+  ];
+
+  const handleNext = () => {
     if (!name || !phone || !zip) {
-      Alert.alert("Missing Info", "Please fill in all fields to get your free quotes");
+      Alert.alert("Missing Info", "Please fill in name, phone, and ZIP code");
       return;
     }
+    if (selectedServices.length === 0) {
+      Alert.alert("Select Services", "Please select at least one service you need");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setStep(2);
+  };
+
+  const handleSubmit = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Create the lead object
+    const lead: QuoteLead = {
+      id: `lead-${Date.now()}`,
+      projectType: selectedServices.join(", "),
+      name,
+      email,
+      phone,
+      zip,
+      projectSize,
+      timeline,
+      description: description || undefined,
+      createdAt: Date.now(),
+      status: "new",
+      matchedVendors: vendors.slice(0, 3).map(v => v.id),
+    };
+
+    console.log("[Lead Generated]", JSON.stringify(lead, null, 2));
+
+    // TODO: In production:
+    // 1. POST lead to backend API
+    // 2. Backend matches lead to subscribed vendors by ZIP + specialty
+    // 3. Subscribed vendors get push notification + email
+    // 4. User gets SMS/email when a pro wants to quote
+    // 5. Lead can be sold to multiple subscribers (up to 3)
+
     setSubmitted(true);
-    // In production, this would send the lead to matching contractors
   };
 
   const handleClose = () => {
+    setStep(1);
     setSubmitted(false);
+    setSelectedServices([]);
     setName("");
+    setEmail("");
     setPhone("");
     setZip("");
+    setProjectSize("medium");
+    setTimeline("1-2weeks");
+    setDescription("");
     onClose();
   };
 
@@ -130,32 +218,60 @@ const QuoteRequestModal = ({
             <Text style={{ fontSize: 28, fontWeight: "800", color: "#0f172a", textAlign: "center", marginBottom: 12 }}>
               Quotes on the way!
             </Text>
-            <Text style={{ fontSize: 16, color: "#6b7280", textAlign: "center", lineHeight: 24, marginBottom: 32 }}>
-              We're connecting you with up to 3 verified pros in your area. Expect calls within 24 hours.
+            <Text style={{ fontSize: 16, color: "#6b7280", textAlign: "center", lineHeight: 24, marginBottom: 24 }}>
+              We're matching you with verified pros in your area.
             </Text>
-            <View style={{ backgroundColor: "white", borderRadius: 16, padding: 20, width: "100%", marginBottom: 24 }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#6b7280", marginBottom: 12 }}>MATCHED PROS</Text>
-              {vendors.slice(0, 3).map((v, i) => (
-                <View key={i} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: "#f3f4f6" }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary[100], alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ fontSize: 16, fontWeight: "700", color: colors.primary[600] }}>{v.name?.charAt(0) || "P"}</Text>
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#0f172a" }}>{v.name || `Pro ${i + 1}`}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-                      <Ionicons name="star" size={12} color="#f59e0b" />
-                      <Text style={{ fontSize: 13, color: "#6b7280", marginLeft: 4 }}>{v.rating || 4.8}</Text>
-                      {v.verified && (
-                        <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 8 }}>
-                          <Ionicons name="shield-checkmark" size={12} color="#10b981" />
-                          <Text style={{ fontSize: 11, color: "#10b981", marginLeft: 2 }}>Verified</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
+
+            {/* What Happens Next */}
+            <View style={{ backgroundColor: "white", borderRadius: 16, padding: 20, width: "100%", marginBottom: 20 }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: "#0f172a", marginBottom: 16 }}>What happens next?</Text>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 14 }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary[100], alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary[600] }}>1</Text>
                 </View>
-              ))}
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#0f172a" }}>Pros get notified</Text>
+                  <Text style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Up to 3 verified pros in {zip} will receive your request</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 14 }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary[100], alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary[600] }}>2</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#0f172a" }}>You'll hear back</Text>
+                  <Text style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Expect calls or texts within 24 hours{email ? ` (we'll also email ${email})` : ""}</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary[100], alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary[600] }}>3</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#0f172a" }}>Compare & choose</Text>
+                  <Text style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Review quotes, ask questions, and pick the best fit</Text>
+                </View>
+              </View>
             </View>
+
+            {/* Your Request Summary */}
+            <View style={{ backgroundColor: "#f1f5f9", borderRadius: 12, padding: 16, width: "100%", marginBottom: 24 }}>
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, color: "#6b7280", marginBottom: 4 }}>Services</Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#0f172a" }}>
+                  {selectedServices.map(s => serviceOptions.find(o => o.id === s)?.label).join(", ")}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, color: "#6b7280" }}>Size</Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#0f172a" }}>{projectSizes.find(s => s.id === projectSize)?.desc}</Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 13, color: "#6b7280" }}>Timeline</Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: timelines.find(t => t.id === timeline)?.color }}>{timelines.find(t => t.id === timeline)?.label}</Text>
+              </View>
+            </View>
+
             <Pressable
               style={{ backgroundColor: colors.primary[600], paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12, width: "100%" }}
               onPress={handleClose}
@@ -172,109 +288,242 @@ const QuoteRequestModal = ({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#e5e7eb", backgroundColor: "white" }}>
-          <Pressable onPress={handleClose}>
-            <Ionicons name="close" size={28} color="#6b7280" />
+          <Pressable onPress={step === 2 ? () => setStep(1) : handleClose}>
+            <Ionicons name={step === 2 ? "arrow-back" : "close"} size={28} color="#6b7280" />
           </Pressable>
           <Text style={{ fontSize: 18, fontWeight: "700", color: "#0f172a" }}>Get Free Quotes</Text>
-          <View style={{ width: 28 }} />
+          <Text style={{ fontSize: 14, color: "#9ca3af" }}>{step}/2</Text>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
-          {/* Hero */}
-          <View style={{ alignItems: "center", marginBottom: 24 }}>
-            <LinearGradient colors={[colors.accent[400], colors.accent[500]]} style={{ width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-              <Ionicons name="flash" size={32} color="white" />
-            </LinearGradient>
-            <Text style={{ fontSize: 24, fontWeight: "800", color: "#0f172a", textAlign: "center", marginBottom: 8 }}>
-              Compare quotes from top pros
-            </Text>
-            <Text style={{ fontSize: 15, color: "#6b7280", textAlign: "center" }}>
-              Free, no obligation • Takes 30 seconds
-            </Text>
-          </View>
+        {/* Progress Bar */}
+        <View style={{ height: 3, backgroundColor: "#e5e7eb" }}>
+          <View style={{ height: 3, backgroundColor: colors.primary[500], width: step === 1 ? "50%" : "100%" }} />
+        </View>
 
-          {/* Project Type */}
-          <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 12 }}>What's your project?</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 20 }}>
-            {projectTypes.map((p) => (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+          {step === 1 ? (
+            <>
+              {/* Hero */}
+              <View style={{ alignItems: "center", marginBottom: 24 }}>
+                <LinearGradient colors={[colors.accent[400], colors.accent[500]]} style={{ width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                  <Ionicons name="flash" size={32} color="white" />
+                </LinearGradient>
+                <Text style={{ fontSize: 24, fontWeight: "800", color: "#0f172a", textAlign: "center", marginBottom: 8 }}>
+                  Compare quotes from top pros
+                </Text>
+                <Text style={{ fontSize: 15, color: "#6b7280", textAlign: "center" }}>
+                  Free, no obligation • Takes 30 seconds
+                </Text>
+              </View>
+
+              {/* Services - Multi-select Grid */}
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 4 }}>What do you need? <Text style={{ fontWeight: "400", color: "#9ca3af" }}>(select all that apply)</Text></Text>
+              <Text style={{ fontSize: 12, color: "#9ca3af", marginBottom: 12 }}>
+                {selectedServices.length === 0 ? "Tap to select services" : `${selectedServices.length} selected`}
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4, marginBottom: 20 }}>
+                {serviceOptions.map((service) => {
+                  const isSelected = selectedServices.includes(service.id);
+                  return (
+                    <Pressable
+                      key={service.id}
+                      onPress={() => toggleService(service.id)}
+                      style={{
+                        width: "48%",
+                        marginHorizontal: "1%",
+                        marginBottom: 8,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        backgroundColor: isSelected ? colors.primary[50] : "white",
+                        borderWidth: 2,
+                        borderColor: isSelected ? colors.primary[500] : "#e5e7eb",
+                      }}
+                    >
+                      <View style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 4,
+                        borderWidth: 2,
+                        borderColor: isSelected ? colors.primary[500] : "#d1d5db",
+                        backgroundColor: isSelected ? colors.primary[500] : "transparent",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 10,
+                      }}>
+                        {isSelected && <Ionicons name="checkmark" size={14} color="white" />}
+                      </View>
+                      <Ionicons name={service.icon as any} size={18} color={isSelected ? colors.primary[600] : "#6b7280"} />
+                      <Text style={{ marginLeft: 8, fontSize: 13, fontWeight: "600", color: isSelected ? colors.primary[700] : "#374151", flex: 1 }} numberOfLines={1}>
+                        {service.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Contact Info */}
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 12 }}>Your contact info</Text>
+              <View style={{ backgroundColor: "white", borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 20 }}>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your name *"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="words"
+                  style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}
+                />
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="Phone number *"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="phone-pad"
+                  style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}
+                />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email (for quote notifications)"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}
+                />
+                <TextInput
+                  value={zip}
+                  onChangeText={setZip}
+                  placeholder="ZIP code *"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="number-pad"
+                  maxLength={5}
+                  style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14 }}
+                />
+              </View>
+
+              {/* Trust Badges */}
+              <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 24 }}>
+                <View style={{ alignItems: "center" }}>
+                  <Ionicons name="shield-checkmark" size={24} color="#10b981" />
+                  <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: "500" }}>Verified Pros</Text>
+                </View>
+                <View style={{ alignItems: "center" }}>
+                  <Ionicons name="lock-closed" size={24} color="#3b82f6" />
+                  <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: "500" }}>Secure</Text>
+                </View>
+                <View style={{ alignItems: "center" }}>
+                  <Ionicons name="cash-outline" size={24} color="#f59e0b" />
+                  <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: "500" }}>100% Free</Text>
+                </View>
+              </View>
+
+              {/* Next */}
               <Pressable
-                key={p.id}
-                onPress={() => setProjectType(p.id)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 20,
-                  marginRight: 8,
-                  marginBottom: 8,
-                  backgroundColor: projectType === p.id ? colors.primary[600] : "white",
-                  borderWidth: 1,
-                  borderColor: projectType === p.id ? colors.primary[600] : "#e5e7eb",
-                }}
+                style={{ backgroundColor: colors.primary[600], paddingVertical: 18, borderRadius: 14, alignItems: "center", flexDirection: "row", justifyContent: "center" }}
+                onPress={handleNext}
               >
-                <Ionicons name={p.icon} size={18} color={projectType === p.id ? "white" : "#6b7280"} />
-                <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: "600", color: projectType === p.id ? "white" : "#374151" }}>{p.label}</Text>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>Continue</Text>
+                <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Pressable>
-            ))}
-          </View>
+            </>
+          ) : (
+            <>
+              {/* Step 2: Project Details */}
+              <Text style={{ fontSize: 20, fontWeight: "700", color: "#0f172a", marginBottom: 4 }}>Almost done, {name.split(" ")[0]}!</Text>
+              <Text style={{ fontSize: 15, color: "#6b7280", marginBottom: 24 }}>Help pros give you accurate quotes</Text>
 
-          {/* Contact Info */}
-          <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 12 }}>Your info</Text>
-          <View style={{ backgroundColor: "white", borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 20 }}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
-              placeholderTextColor="#9ca3af"
-              style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}
-            />
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Phone number"
-              placeholderTextColor="#9ca3af"
-              keyboardType="phone-pad"
-              style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}
-            />
-            <TextInput
-              value={zip}
-              onChangeText={setZip}
-              placeholder="ZIP code"
-              placeholderTextColor="#9ca3af"
-              keyboardType="number-pad"
-              maxLength={5}
-              style={{ fontSize: 16, paddingHorizontal: 16, paddingVertical: 14 }}
-            />
-          </View>
+              {/* Project Size */}
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 12 }}>Estimated project size</Text>
+              <View style={{ flexDirection: "row", marginBottom: 20 }}>
+                {projectSizes.map((s) => (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => { setProjectSize(s.id as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      paddingVertical: 16,
+                      marginRight: s.id !== "large" ? 8 : 0,
+                      borderRadius: 12,
+                      backgroundColor: projectSize === s.id ? colors.primary[50] : "white",
+                      borderWidth: 2,
+                      borderColor: projectSize === s.id ? colors.primary[500] : "#e5e7eb",
+                    }}
+                  >
+                    <Ionicons name={s.icon as any} size={24} color={projectSize === s.id ? colors.primary[600] : "#9ca3af"} />
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: projectSize === s.id ? colors.primary[700] : "#374151", marginTop: 8 }}>{s.label}</Text>
+                    <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{s.desc}</Text>
+                  </Pressable>
+                ))}
+              </View>
 
-          {/* Trust Badges */}
-          <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 24 }}>
-            <View style={{ alignItems: "center" }}>
-              <Ionicons name="shield-checkmark" size={24} color="#10b981" />
-              <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: "500" }}>Verified Pros</Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              <Ionicons name="lock-closed" size={24} color="#3b82f6" />
-              <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: "500" }}>Secure</Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              <Ionicons name="cash-outline" size={24} color="#f59e0b" />
-              <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: "500" }}>100% Free</Text>
-            </View>
-          </View>
+              {/* Timeline */}
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 12 }}>When do you want to start?</Text>
+              <View style={{ marginBottom: 20 }}>
+                {timelines.map((t) => (
+                  <Pressable
+                    key={t.id}
+                    onPress={() => { setTimeline(t.id as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingVertical: 14,
+                      paddingHorizontal: 16,
+                      marginBottom: 8,
+                      borderRadius: 12,
+                      backgroundColor: timeline === t.id ? colors.primary[50] : "white",
+                      borderWidth: 2,
+                      borderColor: timeline === t.id ? colors.primary[500] : "#e5e7eb",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: t.color, marginRight: 12 }} />
+                      <Text style={{ fontSize: 15, fontWeight: "600", color: "#0f172a" }}>{t.label}</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, color: "#6b7280" }}>{t.desc}</Text>
+                  </Pressable>
+                ))}
+              </View>
 
-          {/* Submit */}
-          <Pressable
-            style={{ backgroundColor: colors.accent[500], paddingVertical: 18, borderRadius: 14, alignItems: "center", shadowColor: colors.accent[500], shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
-            onPress={handleSubmit}
-          >
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>Get My Free Quotes</Text>
-          </Pressable>
+              {/* Optional Description */}
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 12 }}>Anything else? (optional)</Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="e.g., Looking for quartz countertops, need 40 sq ft..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                numberOfLines={3}
+                style={{
+                  fontSize: 15,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  backgroundColor: "white",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  minHeight: 80,
+                  textAlignVertical: "top",
+                  marginBottom: 24,
+                }}
+              />
 
-          <Text style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 12 }}>
-            By submitting, you agree to be contacted by local pros
-          </Text>
+              {/* Submit */}
+              <Pressable
+                style={{ backgroundColor: colors.accent[500], paddingVertical: 18, borderRadius: 14, alignItems: "center", shadowColor: colors.accent[500], shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+                onPress={handleSubmit}
+              >
+                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>Get My Free Quotes</Text>
+              </Pressable>
+
+              <Text style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 12 }}>
+                By submitting, you agree to be contacted by local pros
+              </Text>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -283,12 +532,13 @@ const QuoteRequestModal = ({
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { listings, loadMockData, archiveExpiredListings, toggleFavorite, favoriteIds } =
+  const { listings, loadMockData, archiveExpiredListings, toggleFavorite, favoriteIds, checkAndLoadSeedData } =
     useListingsStore();
   const { updateStreak, streak } = useGamificationStore();
   const { user, preferences } = useAuthStore();
   const { translations: t } = useLanguageStore();
-  const { vendors } = useVendorStore();
+  const { vendors, checkAndLoadSeedVendors } = useVendorStore();
+  const { getFeaturedProducts, checkAndLoadMarketplaceData, getMarketplaceProductCount } = useVendorCatalogStore();
   const { shouldShowAd, dismissAd, updateLastShownAdTimestamp } = useAdsStore();
   const { getAdsByPlacement, trackImpression, trackClick, loadMockAds } = useNativeAdsStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -309,15 +559,20 @@ export default function HomeScreen() {
 
   useEffect(() => {
     updateStreak();
-    
+
     const hasLoadedData = listings.length > 0;
     if (!hasLoadedData) {
       loadMockData();
     }
     archiveExpiredListings();
-    
+
     // Load mock ads
     loadMockAds();
+
+    // Load marketplace seed data (1400+ products)
+    checkAndLoadMarketplaceData();
+    checkAndLoadSeedData();
+    checkAndLoadSeedVendors();
   }, []);
 
   const onRefresh = () => {
@@ -922,6 +1177,65 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Best Sellers Section - Marketplace Featured Products */}
+        {getFeaturedProducts(8).length > 0 && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="trophy" size={22} color="#f59e0b" />
+                <Text style={styles.sectionTitle}>Best Sellers</Text>
+                <View style={styles.bestSellerCountBadge}>
+                  <Text style={styles.bestSellerCountText}>{getMarketplaceProductCount()}+ items</Text>
+                </View>
+              </View>
+              <Pressable onPress={() => navigation.navigate("MaterialCatalog" as never)}>
+                <Text style={styles.seeAllText}>Browse All</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScrollContent}
+            >
+              {getFeaturedProducts(8).map((product) => (
+                <Pressable
+                  key={`bestseller-${product.id}`}
+                  style={styles.bestSellerCard}
+                  onPress={() => navigation.navigate("MaterialCatalog" as never)}
+                >
+                  <Image
+                    source={{ uri: product.images?.[0] }}
+                    style={styles.bestSellerImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.bestSellerBadge}>
+                    <Ionicons name="trophy" size={10} color="white" />
+                    <Text style={styles.bestSellerBadgeText}>Best Seller</Text>
+                  </View>
+                  <View style={styles.bestSellerInfo}>
+                    <Text style={styles.bestSellerPrice}>
+                      ${product.pricing?.retailPrice?.toFixed(2) || '0.00'}/sq ft
+                    </Text>
+                    <Text style={styles.bestSellerTitle} numberOfLines={1}>
+                      {product.name}
+                    </Text>
+                    <View style={styles.bestSellerMeta}>
+                      <Text style={styles.bestSellerBrand} numberOfLines={1}>
+                        {product.brand || 'Premium Stone'}
+                      </Text>
+                      {product.stoneType && (
+                        <View style={styles.materialTypeBadge}>
+                          <Text style={styles.materialTypeText}>{product.stoneType}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Active Projects Section - Show user's project pins */}
         {(preferences.activeProjects?.length || 0) > 0 && (
           <View style={styles.sectionContainer}>
@@ -1088,7 +1402,17 @@ export default function HomeScreen() {
                   <Pressable
                     key={`vendor-${vendor.id}`}
                     style={styles.vendorCard}
-                    onPress={() => navigation.navigate("UserProfile", { userId: vendor.id })}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      Alert.alert(
+                        vendor.name || "Vendor",
+                        `${vendor.specialty || "General Contractor"}\n${vendor.location || "Phoenix, AZ"}\n\n⭐ ${vendor.rating?.toFixed(1) || "4.8"} rating\n📞 ${vendor.phone || "(555) 123-4567"}`,
+                        [
+                          { text: "View on Map", onPress: () => navigation.navigate("Map") },
+                          { text: "Close", style: "cancel" }
+                        ]
+                      );
+                    }}
                   >
                     <LinearGradient
                       colors={[colors.primary[500], colors.primary[600]]}
@@ -2457,5 +2781,89 @@ const styles = StyleSheet.create({
     color: colors.primary[500],
     marginTop: 8,
     textAlign: 'center',
+  },
+  // Best Seller Cards
+  bestSellerCard: {
+    width: 170,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  bestSellerImage: {
+    width: '100%',
+    height: 130,
+    backgroundColor: '#f3f4f6',
+  },
+  bestSellerBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  bestSellerBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'white',
+  },
+  bestSellerInfo: {
+    padding: 12,
+  },
+  bestSellerPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  bestSellerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  bestSellerMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  bestSellerBrand: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6b7280',
+    flex: 1,
+  },
+  materialTypeBadge: {
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  materialTypeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#0284c7',
+  },
+  bestSellerCountBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  bestSellerCountText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#d97706',
   },
 });

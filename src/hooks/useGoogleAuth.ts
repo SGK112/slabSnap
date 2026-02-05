@@ -48,14 +48,9 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
     // Don't set webClientId - we want to use native iOS OAuth
   });
 
-  console.log("Google Auth Request ready:", !!request);
-  console.log("Request redirect URI:", request?.redirectUri);
-  console.log("Request URL:", request?.url);
-
   // Handle the auth response
   useEffect(() => {
     const handleResponse = async () => {
-      console.log("Auth response type:", response?.type);
 
       if (response?.type === "success") {
         setIsLoading(true);
@@ -66,7 +61,6 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
             throw new Error("No access token received");
           }
 
-          console.log("Got access token, fetching user info...");
 
           // Store tokens securely
           await SecureStore.setItemAsync(SECURE_KEYS.accessToken, authentication.accessToken);
@@ -87,7 +81,6 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
           }
 
           const userInfo: GoogleUser = await userInfoResponse.json();
-          console.log("Google user info:", userInfo.email);
 
           // Login with the Google user info
           await loginWithGoogle({
@@ -99,18 +92,15 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
             idToken: authentication.idToken,
           });
         } catch (err: any) {
-          console.error("Google auth error:", err);
           setError(err.message || "Google sign-in failed");
           await clearStoredTokens();
         } finally {
           setIsLoading(false);
         }
       } else if (response?.type === "error") {
-        console.error("Google auth error:", response.error);
         setError(response.error?.message || "Google sign-in failed");
         setIsLoading(false);
       } else if (response?.type === "cancel" || response?.type === "dismiss") {
-        console.log("Auth cancelled by user");
         setIsLoading(false);
       }
     };
@@ -121,8 +111,6 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
   }, [response, loginWithGoogle]);
 
   const signInWithGoogle = useCallback(async () => {
-    console.log("=== signInWithGoogle called ===");
-    console.log("Request available:", !!request);
     setError(null);
     setIsLoading(true);
 
@@ -136,14 +124,12 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
 
       // Start the auth flow
       const result = await promptAsync();
-      console.log("Prompt result:", result?.type);
 
       // If cancelled immediately, reset loading
       if (result?.type === "cancel" || result?.type === "dismiss") {
         setIsLoading(false);
       }
     } catch (err: any) {
-      console.error("Google auth error:", err);
       setError(err.message || "Google sign-in failed");
       setIsLoading(false);
     }
@@ -167,8 +153,8 @@ export async function clearStoredTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(SECURE_KEYS.accessToken);
     await SecureStore.deleteItemAsync(SECURE_KEYS.refreshToken);
     await SecureStore.deleteItemAsync(SECURE_KEYS.idToken);
-  } catch (err) {
-    console.error("Error clearing stored tokens:", err);
+  } catch {
+    // Silently handle token clearing errors
   }
 }
 
@@ -176,8 +162,7 @@ export async function clearStoredTokens(): Promise<void> {
 export async function getStoredAccessToken(): Promise<string | null> {
   try {
     return await SecureStore.getItemAsync(SECURE_KEYS.accessToken);
-  } catch (err) {
-    console.error("Error getting stored access token:", err);
+  } catch {
     return null;
   }
 }

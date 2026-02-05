@@ -9,6 +9,52 @@ import {
   StoneType,
   ProductAvailability,
 } from "../types/marketplace";
+import marketplaceSlabs from "../data/marketplace-slabs.json";
+
+// Marketplace seed version - bump to force reload with unique IDs
+const CATALOG_SEED_VERSION = 2;
+const CATALOG_VERSION_KEY = "catalog_seed_version";
+
+// Transform marketplace product to VendorProduct format
+// Include index in ID to handle duplicate product IDs in source data
+const transformMarketplaceProduct = (product: any, index: number): VendorProduct => ({
+  id: `marketplace-${index}-${product.id}`,
+  vendorId: "vendor-marketplace",
+  vendorName: product.brand || "Marketplace",
+  sku: product.sku || `MKT-${product.id}`,
+  name: product.name,
+  description: product.description || `${product.name} - ${product.material_type}`,
+  category: "Stone & Tile" as MaterialCategory,
+  subcategory: `${product.material_type} Slabs`,
+  brand: product.brand,
+  stoneType: product.material_type as StoneType,
+  colorFamily: product.color_family,
+  veiningStyle: product.style === "Subtle Veining" ? "subtle" : product.style === "Dramatic Veining" ? "dramatic" : undefined,
+  finish: product.finish?.toLowerCase() || "polished",
+  origin: product.origin_country,
+  dimensions: { length: 120, width: 55, thickness: 3 },
+  dimensionUnit: "inches" as const,
+  pricing: {
+    retailPrice: product.unit_price,
+    proPrice: Math.round(product.unit_price * 0.8 * 100) / 100, // 20% pro discount
+    priceUnit: "sq_ft" as const,
+    minOrderQty: 1,
+  },
+  pricingVisibility: "public" as const,
+  availability: (product.availability === "in_stock" ? "in_stock" : product.availability === "special_order" ? "special_order" : "low_stock") as ProductAvailability,
+  stockQty: product.availability === "in_stock" ? Math.floor(Math.random() * 50) + 10 : 0,
+  images: product.images?.length > 0 ? product.images : [product.primary_image_url].filter(Boolean),
+  tags: product.tags || [],
+  alternateNames: [],
+  featured: product.featured || false,
+  newArrival: index < 20, // First 20 items are "new"
+  onSale: product.brand_tier === "value",
+  salePrice: product.brand_tier === "value" ? Math.round(product.unit_price * 0.9 * 100) / 100 : undefined,
+  samplesAvailable: true,
+  createdAt: Date.now() - 86400000 * Math.floor(Math.random() * 30),
+  updatedAt: Date.now(),
+  status: "published" as const,
+});
 
 interface VendorCatalogState {
   // Data
@@ -33,7 +79,7 @@ interface VendorCatalogState {
   getPublishedProducts: () => VendorProduct[];
   getProductsByCategory: (category: MaterialCategory) => VendorProduct[];
   searchProducts: (query: string) => VendorProduct[];
-  getFeaturedProducts: () => VendorProduct[];
+  getFeaturedProducts: (limit?: number) => VendorProduct[];
 
   // Lead Actions
   addLead: (lead: CatalogLead) => void;
@@ -43,6 +89,11 @@ interface VendorCatalogState {
 
   // Load sample data
   loadSampleData: () => void;
+
+  // Load marketplace seed data
+  loadMarketplaceData: () => Promise<void>;
+  checkAndLoadMarketplaceData: () => Promise<void>;
+  getMarketplaceProductCount: () => number;
 }
 
 export const useVendorCatalogStore = create<VendorCatalogState>()(
@@ -148,8 +199,9 @@ export const useVendorCatalogStore = create<VendorCatalogState>()(
         );
       },
 
-      getFeaturedProducts: () => {
-        return get().products.filter((p) => p.status === "published" && p.featured);
+      getFeaturedProducts: (limit?: number) => {
+        const featured = get().products.filter((p) => p.status === "published" && p.featured);
+        return limit ? featured.slice(0, limit) : featured;
       },
 
       // Lead Actions
@@ -725,9 +777,91 @@ export const useVendorCatalogStore = create<VendorCatalogState>()(
           leads: [],
         });
       },
+
+      // Load marketplace seed data from marketplace-slabs.json
+      loadMarketplaceData: async () => {
+        try {
+          // Create marketplace vendor catalog
+          const marketplaceCatalog: VendorCatalog = {
+            vendorId: "vendor-marketplace",
+            vendorName: "Remodely Marketplace",
+            vendorType: "distributor",
+            logo: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200",
+            description: "Curated selection of 1400+ premium stone slabs from top brands",
+            website: "https://remodely.ai",
+            phone: "(800) 555-0100",
+            city: "Phoenix",
+            state: "AZ",
+            deliveryAvailable: true,
+            showroomAvailable: false,
+            brands: ["MSI", "Cambria", "Daltile", "Cosentino", "Arizona Tile"],
+            productCount: marketplaceSlabs.productCount,
+            rating: 4.9,
+            reviewCount: 1200,
+            plan: "enterprise",
+            verified: true,
+            createdAt: Date.now() - 86400000 * 365,
+            updatedAt: Date.now(),
+          };
+
+          // Transform marketplace products (limit to first 500 for performance)
+          const marketplaceProducts = marketplaceSlabs.products
+            .slice(0, 500)
+            .map((product: any, index: number) => transformMarketplaceProduct(product, index));
+
+          // Store seed version
+          await AsyncStorage.setItem(CATALOG_VERSION_KEY, String(CATALOG_SEED_VERSION));
+
+          // Merge with existing products (keep non-marketplace products)
+          set((state) => ({
+            catalogs: [
+              marketplaceCatalog,
+              ...state.catalogs.filter(c => c.vendorId !== "vendor-marketplace"),
+            ],
+            products: [
+              ...marketplaceProducts,
+              ...state.products.filter(p => !p.id.startsWith("marketplace-")),
+            ],
+          }));
+
+          console.log(`Loaded ${marketplaceProducts.length} marketplace products`);
+        } catch (error) {
+          console.error("Failed to load marketplace data:", error);
+        }
+      },
+
+      // Check if marketplace data needs to be loaded
+      checkAndLoadMarketplaceData: async () => {
+        try {
+          const storedVersion = await AsyncStorage.getItem(CATALOG_VERSION_KEY);
+          const currentVersion = parseInt(storedVersion || "0", 10);
+
+          // Check if we need to load/update
+          const hasMarketplaceProducts = get().products.some(p => p.id.startsWith("marketplace-"));
+          const hasSampleProducts = get().products.some(p => p.id.startsWith("prod-"));
+
+          if (currentVersion < CATALOG_SEED_VERSION || !hasMarketplaceProducts) {
+            await get().loadMarketplaceData();
+          }
+
+          // Also load sample data for cabinets, flooring, sinks, etc.
+          if (!hasSampleProducts) {
+            get().loadSampleData();
+          }
+        } catch (error) {
+          console.error("Failed to check marketplace data:", error);
+          await get().loadMarketplaceData();
+          get().loadSampleData();
+        }
+      },
+
+      // Get total marketplace product count
+      getMarketplaceProductCount: () => {
+        return marketplaceSlabs.productCount;
+      },
     }),
     {
-      name: "vendor-catalog-storage",
+      name: "vendor-catalog-storage-v2", // Renamed to force fresh storage
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
     }

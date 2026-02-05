@@ -1,8 +1,26 @@
 import express from 'express';
 import nodemailer from 'nodemailer';
 import * as cheerio from 'cheerio';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
+
+// Strict rate limiting for grader - prevents abuse
+const graderLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour window
+  max: 10, // 10 requests per hour per IP
+  message: {
+    error: 'Rate limit exceeded',
+    message: 'You can grade up to 10 websites per hour. Please try again later.',
+    retryAfter: '1 hour'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use X-Forwarded-For for proxied requests (Render, etc.)
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+  }
+});
 
 // In-memory lead storage (for call-me links)
 const graderLeads = new Map();
@@ -612,7 +630,28 @@ async function gradeWebsite(url) {
 // ============================================
 
 // Grade a website - now runs locally instead of proxying
-router.post('/', async (req, res) => {
+// Rate limited: 10 requests per hour per IP
+router.post('/', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required' });
+    }
+
+    console.log(`[GRADER] Analyzing: ${url}`);
+    const result = await gradeWebsite(url);
+    console.log(`[GRADER] Complete: ${url} - Score: ${result.scores?.overall || 'N/A'}`);
+
+    return res.json(result);
+  } catch (error) {
+    console.error('Grader error:', error);
+    return res.status(500).json({ success: false, error: 'Grading failed: ' + error.message });
+  }
+});
+
+// Alias for /analyze endpoint (same as /)
+router.post('/analyze', graderLimiter, async (req, res) => {
   try {
     const { url } = req.body;
 

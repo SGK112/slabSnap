@@ -177,13 +177,21 @@ const ProductDetailModal = ({
       <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 py-4 bg-white border-b border-gray-200">
-          <Pressable onPress={onClose}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            style={{ padding: 8 }}
+          >
             <Ionicons name="close" size={28} color="#6b7280" />
           </Pressable>
           <Text style={{ fontSize: 16, fontWeight: "600", color: "#0f172a" }}>
             Product Details
           </Text>
-          <Pressable onPress={() => {/* Share */}}>
+          <Pressable
+            onPress={() => {/* Share */}}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            style={{ padding: 8 }}
+          >
             <Ionicons name="share-outline" size={24} color="#6b7280" />
           </Pressable>
         </View>
@@ -459,7 +467,11 @@ export default function MaterialCatalogScreen() {
       {/* Header */}
       <View className="px-5 py-4 bg-white border-b border-gray-200">
         <View className="flex-row items-center">
-          <Pressable onPress={() => navigation.goBack()} className="mr-4">
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            style={{ padding: 8, marginRight: 8 }}
+          >
             <Ionicons name="arrow-back" size={24} color="#0f172a" />
           </Pressable>
           <View className="flex-1">

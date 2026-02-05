@@ -1,7 +1,12 @@
 /**
  * Comprehensive Stone Color Catalog
  * Bootstrap data from Surprise Granite and major suppliers (MSI, Cambria, etc.)
+ *
+ * Note: Full marketplace data is available in marketplace-slabs.json
+ * This file provides quick access to curated popular colors for UI components
  */
+
+import marketplaceData from './marketplace-slabs.json';
 
 export interface StoneColor {
   id: string;
@@ -14,7 +19,60 @@ export interface StoneColor {
   colors: string[]; // Dominant colors like ["white", "gray", "black"]
   finish?: "Polished" | "Honed" | "Leathered";
   priceRange?: "budget" | "mid" | "premium";
+  pricePerSqFt?: number;
+  slug?: string;
 }
+
+// Marketplace product interface for reference
+export interface MarketplaceProduct {
+  id: string;
+  name: string;
+  brand: string;
+  sku: string;
+  material_type: string;
+  color_family: string;
+  finish: string;
+  unit_price: number;
+  price_unit: string;
+  primary_image_url: string;
+  images: string[];
+  origin_country: string | null;
+  availability: string;
+  description: string;
+  tags: string[];
+  trending: boolean;
+  views: number;
+  slug: string;
+  brand_tier: string;
+  featured?: boolean;
+  bestSeller?: boolean;
+}
+
+// Get all marketplace products
+export const getMarketplaceProducts = (): MarketplaceProduct[] => {
+  return marketplaceData.products as MarketplaceProduct[];
+};
+
+// Get featured/best-selling products
+export const getFeaturedProducts = (): MarketplaceProduct[] => {
+  return getMarketplaceProducts().filter(p => p.featured || p.bestSeller);
+};
+
+// Convert marketplace product to StoneColor format
+const toStoneColor = (product: MarketplaceProduct): StoneColor => ({
+  id: product.id,
+  name: product.name,
+  type: product.material_type as StoneColor['type'],
+  supplier: product.brand,
+  imageUrl: product.primary_image_url || '',
+  description: product.description || `${product.name} - ${product.material_type}`,
+  popular: product.featured || product.bestSeller || false,
+  colors: [product.color_family?.toLowerCase() || 'multi'],
+  finish: (product.finish as StoneColor['finish']) || 'Polished',
+  priceRange: product.brand_tier === 'luxury' ? 'premium' : product.brand_tier === 'premium' ? 'mid' : 'budget',
+  pricePerSqFt: product.unit_price,
+  slug: product.slug,
+});
 
 // GRANITE COLORS
 export const GRANITE_COLORS: StoneColor[] = [
@@ -334,10 +392,60 @@ export const getColorsBySupplier = (supplier: string): StoneColor[] => {
 
 export const searchColors = (query: string): StoneColor[] => {
   const lowerQuery = query.toLowerCase();
-  return ALL_STONE_COLORS.filter(color => 
+  return ALL_STONE_COLORS.filter(color =>
     color.name.toLowerCase().includes(lowerQuery) ||
     color.type.toLowerCase().includes(lowerQuery) ||
     color.supplier.toLowerCase().includes(lowerQuery) ||
     color.colors.some(c => c.toLowerCase().includes(lowerQuery))
   );
+};
+
+// === New Marketplace Data Functions ===
+
+// Search all marketplace products
+export const searchMarketplaceProducts = (query: string): MarketplaceProduct[] => {
+  const lowerQuery = query.toLowerCase();
+  return getMarketplaceProducts().filter(product =>
+    product.name.toLowerCase().includes(lowerQuery) ||
+    product.brand.toLowerCase().includes(lowerQuery) ||
+    product.material_type.toLowerCase().includes(lowerQuery) ||
+    product.color_family?.toLowerCase().includes(lowerQuery) ||
+    product.description?.toLowerCase().includes(lowerQuery)
+  );
+};
+
+// Get products by material type from marketplace
+export const getMarketplaceProductsByType = (type: string): MarketplaceProduct[] => {
+  return getMarketplaceProducts().filter(p =>
+    p.material_type.toLowerCase() === type.toLowerCase()
+  );
+};
+
+// Get products by color family from marketplace
+export const getMarketplaceProductsByColor = (color: string): MarketplaceProduct[] => {
+  return getMarketplaceProducts().filter(p =>
+    p.color_family?.toLowerCase() === color.toLowerCase()
+  );
+};
+
+// Get products by brand from marketplace
+export const getMarketplaceProductsByBrand = (brand: string): MarketplaceProduct[] => {
+  return getMarketplaceProducts().filter(p =>
+    p.brand.toLowerCase().includes(brand.toLowerCase())
+  );
+};
+
+// Get trending products from marketplace
+export const getTrendingProducts = (): MarketplaceProduct[] => {
+  return getMarketplaceProducts().filter(p => p.trending);
+};
+
+// Convert marketplace products to StoneColor format for legacy compatibility
+export const getMarketplaceAsStoneColors = (): StoneColor[] => {
+  return getMarketplaceProducts().map(toStoneColor);
+};
+
+// Get total product count
+export const getMarketplaceProductCount = (): number => {
+  return marketplaceData.productCount;
 };

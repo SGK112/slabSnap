@@ -10,11 +10,11 @@ export default function HelpSupportScreen() {
   const navigation = useNavigation();
 
   const handleEmailSupport = () => {
-    Linking.openURL("mailto:support@surprisegranite.com?subject=cutStone Support Request");
+    Linking.openURL("mailto:support@remodely.ai?subject=REMODELY.AI Support Request");
   };
 
   const handleChatSupport = () => {
-    Alert.alert("Chat Support", "Chat support coming soon! For now, please email us at support@surprisegranite.com");
+    Alert.alert("Chat Support", "Chat support coming soon! For now, please email us at support@remodely.ai");
   };
 
   const handleFAQ = (faqId: string) => {
@@ -100,7 +100,7 @@ export default function HelpSupportScreen() {
                   fontSize: 14, 
                   color: colors.text.tertiary 
                 }}>
-                  support@surprisegranite.com
+                  support@remodely.ai
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
@@ -216,7 +216,7 @@ export default function HelpSupportScreen() {
                 borderBottomWidth: 1,
                 borderBottomColor: colors.border.light
               }}
-              onPress={() => Alert.alert("Terms of Service", "View our terms at curative.app/terms")}
+              onPress={() => Linking.openURL("https://remodely.ai/terms.html")}
             >
               <Text style={{ 
                 fontSize: 16, 
@@ -238,7 +238,7 @@ export default function HelpSupportScreen() {
                 borderBottomWidth: 1,
                 borderBottomColor: colors.border.light
               }}
-              onPress={() => Alert.alert("Privacy Policy", "View our privacy policy at curative.app/privacy")}
+              onPress={() => Linking.openURL("https://remodely.ai/privacy.html")}
             >
               <Text style={{ 
                 fontSize: 16, 
@@ -258,7 +258,7 @@ export default function HelpSupportScreen() {
                 paddingHorizontal: 20,
                 paddingVertical: 16,
               }}
-              onPress={() => Alert.alert("Community Guidelines", "View our guidelines at curative.app/guidelines")}
+              onPress={() => Linking.openURL("https://remodely.ai/terms.html#community-guidelines")}
             >
               <Text style={{ 
                 fontSize: 16, 
@@ -275,10 +275,10 @@ export default function HelpSupportScreen() {
         {/* App Info */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 40, alignItems: 'center' }}>
           <Text style={{ fontSize: 14, color: colors.text.tertiary, marginBottom: 4 }}>
-            cutStone Version 1.0.0
+            REMODELY.AI Version 1.0.0
           </Text>
           <Text style={{ fontSize: 13, color: colors.text.quaternary }}>
-            Powered by Surprise Granite
+            Powered by Remodely LLC
           </Text>
         </View>
       </ScrollView>
