@@ -3,7 +3,7 @@ services:
   - type: web
     name: remodely-app
     runtime: static
-    buildCommand: npm ci --legacy-peer-deps && npx expo export --platform web --output-dir dist
+    buildCommand: npm ci --legacy-peer-deps && mkdir -p node_modules/.cache/nativewind && npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css && npx expo export --platform web --output-dir dist
     staticPublishPath: dist
     pullRequestPreviewsEnabled: true
     envVars:
