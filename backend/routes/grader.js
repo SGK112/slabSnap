@@ -384,10 +384,12 @@ class WebsiteGrader {
   }
 
   // Google PageSpeed Insights — real Core Web Vitals (LCP, INP, CLS, FCP, TTFB)
-  // and a Lighthouse performance score. Free; an API key (GOOGLE_PSI_API_KEY) bumps quota.
+  // and a Lighthouse performance score. Free; an API key bumps quota from the
+  // shared 25k/day pool to a per-key 25k/day. Falls back to GOOGLE_AI_API_KEY
+  // (same Google Cloud project) when the dedicated PSI key isn't set.
   // Replaces the load-time guess in this.scores.speed when PSI succeeds.
   async checkCoreWebVitals() {
-    const apiKey = process.env.GOOGLE_PSI_API_KEY || '';
+    const apiKey = process.env.GOOGLE_PSI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
     const endpoint = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
     const params = new URLSearchParams({
       url: this.url,
