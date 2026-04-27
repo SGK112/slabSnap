@@ -281,21 +281,72 @@ class WebsiteGrader {
   checkStructuredData() {
     let score = 0;
     const schemaTypes = [];
+    const schemaWarnings = [];
+    const parsedNodes = [];
+    let parseErrors = 0;
+
+    // Google's list of types that legitimately accept aggregateRating
+    // (mismatching this is the #1 structured-data error in Search Console)
+    const RATING_ALLOWED_TYPES = new Set([
+      'Book', 'Course', 'CreativeWorkSeason', 'CreativeWorkSeries', 'Episode',
+      'Event', 'Game', 'HowTo', 'LocalBusiness', 'MediaObject', 'Movie',
+      'MusicPlaylist', 'MusicRecording', 'Organization', 'Product', 'Recipe',
+      'SoftwareApplication',
+      // LocalBusiness subtypes Google treats as LocalBusiness
+      'GeneralContractor', 'HomeAndConstructionBusiness', 'Restaurant',
+      'Store', 'ProfessionalService', 'AutomotiveBusiness', 'Plumber',
+      'RoofingContractor', 'Electrician', 'HousePainter', 'HVACBusiness',
+      'MovingCompany', 'Locksmith',
+    ]);
+
+    // Walk a node and report any aggregateRating attached to a type Google rejects
+    const checkNode = (node) => {
+      if (!node || typeof node !== 'object') return;
+      const t = node['@type'];
+      if (t) {
+        const types = Array.isArray(t) ? t : [t];
+        types.forEach(typ => schemaTypes.push(typ));
+        if (node.aggregateRating) {
+          const ok = types.some(typ => RATING_ALLOWED_TYPES.has(typ));
+          if (!ok) {
+            schemaWarnings.push(
+              `aggregateRating attached to "${types.join('/')}" — Google rejects ratings on this type. Move it to a LocalBusiness, Organization, or Product node.`
+            );
+          }
+        }
+      }
+      // Recurse into known nested holders
+      ['provider', 'publisher', 'author', 'mainEntity', 'itemReviewed'].forEach(k => {
+        if (node[k]) checkNode(node[k]);
+      });
+      if (Array.isArray(node['@graph'])) node['@graph'].forEach(checkNode);
+    };
 
     // Look for JSON-LD
     this.$('script[type="application/ld+json"]').each((_, script) => {
+      const raw = this.$(script).html();
       try {
-        const data = JSON.parse(this.$(script).html());
+        const data = JSON.parse(raw);
         if (Array.isArray(data)) {
-          data.forEach(item => {
-            if (item['@type']) schemaTypes.push(item['@type']);
-          });
-        } else if (data['@type']) {
-          schemaTypes.push(data['@type']);
+          data.forEach(item => { parsedNodes.push(item); checkNode(item); });
+        } else {
+          parsedNodes.push(data);
+          checkNode(data);
         }
       } catch (e) {
-        // Invalid JSON, skip
+        parseErrors++;
       }
+    });
+
+    if (parseErrors > 0) {
+      this.issues.push(`${parseErrors} JSON-LD block(s) failed to parse — Google ignores invalid structured data`);
+      this.recommendations.push("Validate all JSON-LD with Google's Rich Results Test before publishing");
+    }
+
+    // Surface the rating-mismatch warning publicly so customers see exactly the issue
+    schemaWarnings.forEach(w => {
+      this.issues.push(`Structured data: ${w}`);
+      this.recommendations.push("Move aggregateRating onto the LocalBusiness/Organization/Product node, not Service or generic types");
     });
 
     // Check for important schema types
@@ -310,11 +361,16 @@ class WebsiteGrader {
       score = 75;
     } else if (foundImportant.length >= 1) {
       score = 50;
-    } else if (schemaTypes.length > 0) {
+    } else if (parsedNodes.length > 0) {
       score = 25;
     } else {
       this.issues.push("No structured data (Schema.org) found");
       this.recommendations.push("Add LocalBusiness and Service schema for AI discoverability");
+    }
+
+    // Penalize if we found schema but it has Google-rejecting issues
+    if (score > 0 && schemaWarnings.length > 0) {
+      score = Math.max(25, score - 25);
     }
 
     if (!schemaTypes.includes('FAQPage')) {
@@ -323,7 +379,91 @@ class WebsiteGrader {
 
     this.scores.structured_data = score;
     this.scores.schema_types = schemaTypes;
+    this.scores.schema_warnings = schemaWarnings;
     return score;
+  }
+
+  // Google PageSpeed Insights — real Core Web Vitals (LCP, INP, CLS, FCP, TTFB)
+  // and a Lighthouse performance score. Free; an API key (GOOGLE_PSI_API_KEY) bumps quota.
+  // Replaces the load-time guess in this.scores.speed when PSI succeeds.
+  async checkCoreWebVitals() {
+    const apiKey = process.env.GOOGLE_PSI_API_KEY || '';
+    const endpoint = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
+    const params = new URLSearchParams({
+      url: this.url,
+      strategy: 'mobile',
+      category: 'performance',
+    });
+    if (apiKey) params.set('key', apiKey);
+
+    try {
+      const res = await fetch(`${endpoint}?${params.toString()}`, {
+        signal: AbortSignal.timeout(45000),
+      });
+      if (!res.ok) {
+        this.scores.core_web_vitals = { available: false, reason: `PSI HTTP ${res.status}` };
+        return null;
+      }
+      const data = await res.json();
+      const lh = data.lighthouseResult || {};
+      const audits = lh.audits || {};
+      const perfScore = Math.round((lh.categories?.performance?.score ?? 0) * 100);
+
+      const num = (auditId) => {
+        const v = audits[auditId]?.numericValue;
+        return typeof v === 'number' ? v : null;
+      };
+
+      const cwv = {
+        available: true,
+        performance_score: perfScore,
+        // Numeric values in milliseconds (CLS is unitless)
+        lcp_ms: num('largest-contentful-paint'),
+        inp_ms: num('interaction-to-next-paint') ?? num('experimental-interaction-to-next-paint'),
+        cls: num('cumulative-layout-shift'),
+        fcp_ms: num('first-contentful-paint'),
+        ttfb_ms: num('server-response-time'),
+        tbt_ms: num('total-blocking-time'),
+        strategy: 'mobile',
+        source: 'Google PageSpeed Insights',
+      };
+
+      // Promote PSI's perf score into the speed slot — it's the real number
+      this.scores.speed = perfScore;
+
+      // Add issue/recommendation lines for any failing CWV thresholds (Google's "good" cutoffs)
+      if (cwv.lcp_ms != null && cwv.lcp_ms > 2500) {
+        this.issues.push(`Slow LCP: ${(cwv.lcp_ms / 1000).toFixed(1)}s (target < 2.5s)`);
+        this.recommendations.push("Improve Largest Contentful Paint — optimize hero image, preload critical assets");
+      }
+      if (cwv.cls != null && cwv.cls > 0.1) {
+        this.issues.push(`Layout shift (CLS) ${cwv.cls.toFixed(2)} (target < 0.1)`);
+        this.recommendations.push("Set explicit width/height on images and reserve space for ads/embeds");
+      }
+      if (cwv.inp_ms != null && cwv.inp_ms > 200) {
+        this.issues.push(`Slow interactivity (INP): ${Math.round(cwv.inp_ms)}ms (target < 200ms)`);
+      }
+      if (perfScore < 50) {
+        this.issues.push(`Poor Lighthouse performance score: ${perfScore}/100`);
+      }
+
+      this.scores.core_web_vitals = cwv;
+      return cwv;
+    } catch (err) {
+      this.scores.core_web_vitals = { available: false, reason: err.message || 'PSI fetch failed' };
+      return null;
+    }
+  }
+
+  // Pre-filled deep links to Google's official tools so customers can verify externally
+  buildGoogleTools() {
+    const u = encodeURIComponent(this.url);
+    return {
+      rich_results: `https://search.google.com/test/rich-results?url=${u}`,
+      pagespeed: `https://pagespeed.web.dev/report?url=${u}`,
+      mobile_friendly: `https://search.google.com/test/mobile-friendly?url=${u}`,
+      safe_browsing: `https://transparencyreport.google.com/safe-browsing/search?url=${u}`,
+    };
   }
 
   checkSocialPresence() {
@@ -566,7 +706,8 @@ class WebsiteGrader {
       };
     }
 
-    // Run all checks
+    // Run all checks. Kick off PSI in parallel — it's the slow one (~10-30s).
+    const psiPromise = this.checkCoreWebVitals();
     this.checkHttps();
     this.checkMobileViewport();
     this.checkMetaTags();
@@ -577,6 +718,7 @@ class WebsiteGrader {
     this.checkSocialPresence();
     this.checkContactInfo();
     this.checkContentQuality();
+    await psiPromise; // PSI may overwrite scores.speed with a real Lighthouse number
     this.checkAiVisibility();
     this.calculateOverallScore();
 
@@ -611,8 +753,11 @@ class WebsiteGrader {
         word_count: this.scores.word_count || 0,
         social_platforms: this.scores.social_platforms || [],
         schema_types: this.scores.schema_types || [],
+        schema_warnings: this.scores.schema_warnings || [],
         ai_factors: this.scores.ai_factors || [],
+        core_web_vitals: this.scores.core_web_vitals || { available: false },
       },
+      google_tools: this.buildGoogleTools(),
       issues: this.issues.slice(0, 10),
       recommendations: this.recommendations.slice(0, 8),
     };
