@@ -120,8 +120,9 @@ class WebsiteGrader {
     let score = 0;
     const pointsPerItem = 20;
 
-    // Title
-    const title = this.$('title').text().trim();
+    // Title — first <title> in <head> only. Skip <svg><title> elements which
+    // describe icons, not the page (they'd otherwise concatenate to a 300+ char string).
+    const title = (this.$('head > title').first().text() || this.$('title').first().text() || '').trim();
     if (title) {
       if (title.length >= 10 && title.length <= 60) {
         score += pointsPerItem;
