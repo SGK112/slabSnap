@@ -671,9 +671,65 @@ router.post('/analyze', graderLimiter, async (req, res) => {
 });
 
 // Send email report and optionally trigger/schedule Aria call
+// Quick Win playbook: maps a quick-win title to DIY fix instructions + a
+// free official tool / guide link so the recipient can actually fix their
+// own site without paying anyone. Match is case-insensitive starts-with.
+const QUICK_WIN_PLAYBOOK = [
+  { match: /meta description/i,
+    how: 'In your page <head>, add: <code style="background:#0a0f1a;padding:2px 6px;border-radius:3px;color:#93c5fd;font-family:monospace">&lt;meta name="description" content="..."&gt;</code> with 150–160 characters describing the page.',
+    link: 'https://moz.com/learn/seo/meta-description', linkText: 'Meta description guide (Moz)' },
+  { match: /schema|structured data|localbusiness/i,
+    how: 'Generate a free LocalBusiness JSON-LD block, then paste it inside the &lt;head&gt; of your homepage. Test with Google Rich Results Test.',
+    link: 'https://technicalseo.com/tools/schema-markup-generator/', linkText: 'Schema Markup Generator (free)' },
+  { match: /faq/i,
+    how: 'Create a /faq page with at least 8 real customer questions. Wrap them in FAQPage JSON-LD schema so Google and AI crawlers index each Q&A.',
+    link: 'https://developers.google.com/search/docs/appearance/structured-data/faqpage', linkText: 'FAQPage schema (Google)' },
+  { match: /alt text|alt tag|image/i,
+    how: 'Every &lt;img&gt; needs alt="describes the image" — describe what is in the image, not the filename. Skip alt only on purely decorative graphics.',
+    link: 'https://www.w3.org/WAI/tutorials/images/decision-tree/', linkText: 'Alt text decision tree (W3C)' },
+  { match: /social/i,
+    how: 'Add visible links to your Facebook, Instagram, Google Business Profile, and LinkedIn in your site footer. Use rel="noopener" target="_blank".',
+    link: 'https://support.google.com/business/answer/3038063', linkText: 'Set up Google Business Profile' },
+  { match: /contact/i,
+    how: 'In your footer (and /contact page), show phone, email, full street address, and hours in plain text — not just an image. Use itemprop or LocalBusiness schema for structured machine-readable data.',
+    link: 'https://schema.org/PostalAddress', linkText: 'PostalAddress schema reference' },
+  { match: /h1|heading/i,
+    how: 'Each page should have exactly one &lt;h1&gt; near the top, written for the keyword you want to rank for + your brand. Demote any duplicate H1s to H2.',
+    link: 'https://developers.google.com/search/docs/fundamentals/seo-starter-guide', linkText: 'Google SEO Starter Guide' },
+  { match: /title/i,
+    how: 'Each page &lt;title&gt; should be 50–60 characters, primary keyword first, brand at the end. Unique per page — never duplicate across the site.',
+    link: 'https://moz.com/learn/seo/title-tag', linkText: 'Title tag guide (Moz)' },
+  { match: /robots|sitemap/i,
+    how: 'Publish /sitemap.xml listing every public URL with <lastmod> dates, and /robots.txt that allows crawling and points to the sitemap.',
+    link: 'https://www.sitemaps.org/protocol.html', linkText: 'sitemaps.org spec' },
+  { match: /llms\.txt|ai visibility|ai.txt/i,
+    how: 'Publish a /llms.txt at the root of your site — a plain-text summary of your business AI tools (ChatGPT, Claude, Perplexity) can cite. See the spec for format.',
+    link: 'https://llmstxt.org', linkText: 'llms.txt spec' },
+  { match: /page speed|performance|lcp|loading/i,
+    how: 'Run PageSpeed Insights on your site, then act on the top 3 lab-mode opportunities (typically: defer offscreen images, compress hero video, eliminate render-blocking CSS).',
+    link: 'https://pagespeed.web.dev/', linkText: 'PageSpeed Insights (free)' },
+  { match: /https|ssl|secure/i,
+    how: 'Force HTTPS on every URL. If your host is Cloudflare, Render, Vercel, or similar, switch on "Always Use HTTPS" / "Force SSL" in dashboard settings. Then submit the HTTPS sitemap to Google Search Console.',
+    link: 'https://web.dev/articles/why-https-matters', linkText: 'Why HTTPS matters (web.dev)' },
+];
+
+function findPlaybookEntry(title) {
+  const t = String(title || '');
+  for (const p of QUICK_WIN_PLAYBOOK) {
+    if (p.match.test(t)) return p;
+  }
+  return null;
+}
+
+function buildScoreColor(score) {
+  if (score >= 80) return '#22c55e';
+  if (score >= 60) return '#eab308';
+  return '#ef4444';
+}
+
 router.post('/send-report', async (req, res) => {
   try {
-    const { email, name, url, scores, phone, preferredTime, triggerCall } = req.body;
+    const { email, name, url, scores, phone, preferredTime, triggerCall, analysis } = req.body;
 
     if (!email || !name || !url || !scores) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
@@ -686,71 +742,174 @@ router.post('/send-report', async (req, res) => {
       overall: scores.overall,
       overall_grade: scores.overall_grade,
       ai_visibility: scores.ai_visibility,
-      issues: scores.issues || []
+      issues: (analysis && analysis.issues) || scores.issues || []
     };
 
     const overallScore = scores.overall || 0;
     const aiScore = scores.ai_visibility || 0;
     const overallGrade = scores.overall_grade || 'N/A';
+    const overallColor = buildScoreColor(overallScore);
 
-    let scoreColor = '#ef4444';
-    let scoreMessage = "Your business is invisible to AI. This needs attention.";
-
-    if (overallScore >= 70) {
-      scoreColor = '#22c55e';
-      scoreMessage = "Good job! Your site has solid foundations.";
-    } else if (overallScore >= 50) {
-      scoreColor = '#eab308';
-      scoreMessage = "There's room for improvement.";
-    }
+    let scoreMessage = "Your site is hard for AI and Google to understand. The fixes below are mostly free and DIY.";
+    if (overallScore >= 80) scoreMessage = "Strong foundation. The Quick Wins below take you from good to great.";
+    else if (overallScore >= 60) scoreMessage = "Solid base with clear room to climb. Each Quick Win below is short and DIY.";
 
     const greeting = name && !['there', 'user', ''].includes(name.toLowerCase())
       ? `Hi ${name},`
-      : "Here's your report!";
+      : "Hi there,";
+
+    // Pull rich data; fall back to empty arrays if frontend didn't send it
+    const issues = (analysis && Array.isArray(analysis.issues)) ? analysis.issues.slice(0, 6) : [];
+    const recommendations = (analysis && Array.isArray(analysis.recommendations)) ? analysis.recommendations.slice(0, 6) : [];
+    const quickWins = (analysis && Array.isArray(analysis.quickWins)) ? analysis.quickWins : [];
+    const googleSignals = (analysis && analysis.googleSignals) || null;
+    const tools = (analysis && analysis.tools) || {};
 
     // Build call-me link if phone provided
     const callMeLink = phone ?
       `https://remodely-backend.onrender.com/api/grader/call-me?id=${leadId}` : null;
 
+    // ── Build HTML sections ─────────────────────────────────────────────
+    const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    const quickWinsHtml = quickWins.length ? `
+    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px;margin-bottom:24px;">
+      <div style="color:#3b82f6;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Quick Wins — DIY Fixes</div>
+      <h3 style="color:#fff;font-size:20px;margin:0 0 16px 0;">Fix these first. No developer needed.</h3>
+      ${quickWins.map((qw, i) => {
+        const pb = findPlaybookEntry(qw.title);
+        return `
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding:18px 0;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="flex-shrink:0;width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,0.15);color:#60a5fa;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${i + 1}</div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;">
+                <strong style="color:#fff;font-size:16px;">${escape(qw.title)}</strong>
+                ${qw.time ? `<span style="background:rgba(34,197,94,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${escape(qw.time)}</span>` : ''}
+              </div>
+              ${qw.desc ? `<p style="color:#9ca3af;margin:0 0 8px 0;font-size:14px;">${escape(qw.desc)}</p>` : ''}
+              ${pb ? `
+                <p style="color:#cbd5e1;margin:0 0 8px 0;font-size:14px;line-height:1.55;"><strong style="color:#fff;">How to fix:</strong> ${pb.how}</p>
+                <a href="${escape(pb.link)}" style="color:#60a5fa;text-decoration:none;font-size:13px;font-weight:600;">→ ${escape(pb.linkText)}</a>
+              ` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+    const googleSignalsHtml = (() => {
+      if (!googleSignals) return '';
+      const fmt = (k, label, unit) => {
+        const v = googleSignals[k];
+        if (v == null || v === '' || v === 'Unavailable') return '';
+        return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;text-align:center;"><div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${label}</div><div style="color:#fff;font-size:18px;font-weight:700;">${escape(v)}${unit ? `<span style="font-size:12px;color:#9ca3af;font-weight:400;">${unit}</span>` : ''}</div></div>`;
+      };
+      const items = [
+        fmt('performance', 'Lighthouse', '/100'),
+        fmt('lcp', 'LCP', ''),
+        fmt('cls', 'CLS', ''),
+        fmt('fcp', 'FCP', ''),
+      ].filter(Boolean).join('');
+      if (!items) return '';
+      return `
+    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#3b82f6;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Google Signals</div>
+      <h3 style="color:#fff;font-size:18px;margin:0 0 16px 0;">PageSpeed mobile field data</h3>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div>
+    </div>`;
+    })();
+
+    const issuesHtml = issues.length ? `
+    <div style="background:#131c2e;border:1px solid rgba(239,68,68,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#ef4444;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Issues Detected</div>
+      <h3 style="color:#fff;font-size:18px;margin:0 0 12px 0;">What's hurting your score</h3>
+      <ul style="margin:0;padding:0;list-style:none;">
+        ${issues.map(i => `<li style="color:#cbd5e1;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#ef4444;">!</span>${escape(i)}</li>`).join('')}
+      </ul>
+    </div>` : '';
+
+    const recsHtml = recommendations.length ? `
+    <div style="background:#131c2e;border:1px solid rgba(34,197,94,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#22c55e;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
+      <h3 style="color:#fff;font-size:18px;margin:0 0 12px 0;">Bigger improvements once Quick Wins are done</h3>
+      <ul style="margin:0;padding:0;list-style:none;">
+        ${recommendations.map(r => `<li style="color:#cbd5e1;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#22c55e;">+</span>${escape(r)}</li>`).join('')}
+      </ul>
+    </div>` : '';
+
+    const toolsHtml = (() => {
+      const t = tools || {};
+      const links = [
+        { url: t.rich_results, label: 'Test your structured data', tool: 'Google Rich Results Test' },
+        { url: t.pagespeed, label: 'Re-run page speed', tool: 'PageSpeed Insights' },
+        { url: t.mobile_friendly, label: 'Verify mobile-friendly', tool: 'Google Mobile-Friendly Test' },
+        { url: t.safe_browsing, label: 'Check Safe Browsing status', tool: 'Google Safe Browsing' },
+      ].filter(l => l.url);
+      if (!links.length) return '';
+      return `
+    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#3b82f6;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Free Tools — Test Your Fixes</div>
+      <h3 style="color:#fff;font-size:18px;margin:0 0 12px 0;">Use these to verify each change you make</h3>
+      ${links.map(l => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><a href="${escape(l.url)}" style="color:#60a5fa;text-decoration:none;font-weight:600;font-size:14px;">→ ${escape(l.label)}</a><div style="color:#9ca3af;font-size:12px;margin-top:2px;">${escape(l.tool)}</div></div>`).join('')}
+    </div>`;
+    })();
+
     const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#0a0f1a;">
-  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-    <div style="text-align:center;margin-bottom:32px;">
-      <h1 style="color:#fff;font-size:24px;margin:0;">REMODELY<span style="color:#3b82f6;">.AI</span></h1>
+<head><meta charset="utf-8"><title>Your AI Visibility Report</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0a0f1a;line-height:1.55;">
+  <div style="max-width:640px;margin:0 auto;padding:32px 16px;">
+
+    <div style="text-align:center;margin-bottom:28px;">
+      <h1 style="color:#fff;font-size:24px;margin:0;font-weight:800;">REMODELY<span style="color:#3b82f6;">.AI</span></h1>
+      <p style="color:#6b7280;font-size:13px;margin:6px 0 0 0;">AI Visibility &amp; SEO Report</p>
     </div>
+
     <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:32px;margin-bottom:24px;">
       <h2 style="color:#fff;font-size:20px;margin:0 0 8px 0;">${greeting}</h2>
-      <p style="color:#9ca3af;margin:0 0 24px 0;">Your AI Visibility Report for <strong style="color:#fff;">${url}</strong></p>
-      <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
-        <div style="font-size:14px;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Overall Score</div>
-        <div style="font-size:48px;font-weight:700;color:${scoreColor};">${overallScore}</div>
-        <div style="display:inline-block;background:${scoreColor}20;color:${scoreColor};padding:4px 12px;border-radius:4px;font-size:14px;font-weight:600;margin-top:8px;">Grade: ${overallGrade}</div>
-      </div>
-      <div style="margin-bottom:24px;">
-        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.1);">
-          <span style="color:#9ca3af;">AI Visibility</span>
-          <span style="color:#fff;font-weight:600;">${aiScore}/100</span>
+      <p style="color:#9ca3af;margin:0 0 24px 0;font-size:14px;">Your report for <strong style="color:#fff;">${escape(url)}</strong></p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:10px;padding:18px;text-align:center;">
+          <div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Overall</div>
+          <div style="font-size:38px;font-weight:800;color:${overallColor};line-height:1;">${overallScore}</div>
+          <div style="display:inline-block;background:${overallColor}20;color:${overallColor};padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;margin-top:8px;">Grade: ${escape(overallGrade)}</div>
+        </div>
+        <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.18);border-radius:10px;padding:18px;text-align:center;">
+          <div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">AI Visibility</div>
+          <div style="font-size:38px;font-weight:800;color:${buildScoreColor(aiScore)};line-height:1;">${aiScore}</div>
+          <div style="color:#9ca3af;font-size:12px;margin-top:8px;">Out of 100</div>
         </div>
       </div>
-      <p style="color:#9ca3af;font-size:15px;margin:0;">${scoreMessage}</p>
+
+      <p style="color:#cbd5e1;font-size:15px;margin:0;">${scoreMessage}</p>
     </div>
+
+    ${quickWinsHtml}
+    ${issuesHtml}
+    ${recsHtml}
+    ${googleSignalsHtml}
+    ${toolsHtml}
+
     ${callMeLink ? `
-    <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;">
-      <h3 style="color:#fff;font-size:18px;margin:0 0 8px 0;">Have Aria Call You Now</h3>
-      <p style="color:#9ca3af;margin:0 0 16px 0;font-size:14px;">Our AI assistant will call to discuss your results.</p>
-      <a href="${callMeLink}" style="display:inline-block;background:#3b82f6;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Call Me Now</a>
+    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;">
+      <h3 style="color:#fff;font-size:16px;margin:0 0 8px 0;">Want a 2-minute walkthrough?</h3>
+      <p style="color:#9ca3af;margin:0 0 16px 0;font-size:13px;">Aria (our AI) will call and explain exactly what to fix and in what order — no sales pitch.</p>
+      <a href="${callMeLink}" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Call Me Now</a>
     </div>
     ` : ''}
-    <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:24px;text-align:center;">
-      <h3 style="color:#fff;font-size:18px;margin:0 0 8px 0;">Want to Improve Your Score?</h3>
-      <p style="color:#9ca3af;margin:0 0 16px 0;font-size:14px;">Book a free 15-minute consultation with our team.</p>
-      <a href="https://remodely.ai/#contact" style="display:inline-block;background:#22c55e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Book Free Consultation</a>
+
+    <div style="background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:18px;text-align:center;margin-bottom:16px;">
+      <p style="color:#9ca3af;font-size:13px;margin:0 0 10px 0;">Stuck on any of these? Free 15-minute help, no upsell.</p>
+      <a href="https://remodely.ai/#contact" style="display:inline-block;background:transparent;color:#22c55e;border:1px solid #22c55e;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px;">Book Free Help Call</a>
     </div>
-    <div style="text-align:center;color:#6b7280;font-size:12px;margin-top:24px;">
-      <p style="margin:0;">Remodely AI | <a href="https://remodely.ai" style="color:#3b82f6;">remodely.ai</a></p>
+
+    <div style="text-align:center;color:#6b7280;font-size:11px;margin-top:20px;line-height:1.7;">
+      <p style="margin:0;">Remodely AI · <a href="https://remodely.ai" style="color:#3b82f6;text-decoration:none;">remodely.ai</a></p>
+      <p style="margin:4px 0 0 0;">Every fix in this report is something you can do yourself with the linked free tools. We get paid only if you ask us to do it for you.</p>
     </div>
+
   </div>
 </body>
 </html>`;
