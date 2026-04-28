@@ -20,11 +20,16 @@ export const getAnthropicTextResponse = async (
 ): Promise<AIResponse> => {
   try {
     const client = getAnthropicClient();
-    const defaultModel = "claude-3-5-sonnet-20240620";
+    const defaultModel = "claude-3-7-sonnet-latest";
+
+    // Extract system message if present
+    const systemMessage = messages.find((msg) => msg.role === "system");
+    const nonSystemMessages = messages.filter((msg) => msg.role !== "system");
 
     const response = await client.messages.create({
       model: options?.model || defaultModel,
-      messages: messages.map((msg) => ({
+      ...(systemMessage && { system: systemMessage.content }),
+      messages: nonSystemMessages.map((msg) => ({
         role: msg.role === "assistant" ? "assistant" : "user",
         content: msg.content,
       })),

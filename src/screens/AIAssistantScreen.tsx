@@ -70,7 +70,6 @@ export default function AIAssistantScreen() {
           },
         ],
         {
-          model: "claude-3-5-sonnet-20240620",
           maxTokens: 1024,
         }
       );
