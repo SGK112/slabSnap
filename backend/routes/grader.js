@@ -948,16 +948,22 @@ router.post('/send-report', async (req, res) => {
 
     const googleSignalsHtml = (() => {
       if (!googleSignals) return '';
-      const fmt = (k, label, unit) => {
-        const v = googleSignals[k];
-        if (v == null || v === '' || v === 'Unavailable') return '';
-        return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;text-align:center;"><div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${label}</div><div style="color:#fff;font-size:18px;font-weight:700;">${escape(v)}${unit ? `<span style="font-size:12px;color:#9ca3af;font-weight:400;">${unit}</span>` : ''}</div></div>`;
+      // Accept both the grader's native shape (core_web_vitals: performance_score/lcp_ms/...)
+      // and the simpler {performance, lcp, cls, fcp} shape.
+      const fmtMs = (ms) => ms == null ? null : (ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : Math.round(ms) + 'ms');
+      const card = (label, value, unit) => {
+        if (value == null || value === '' || value === 'Unavailable') return '';
+        return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;text-align:center;"><div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${label}</div><div style="color:#fff;font-size:18px;font-weight:700;">${escape(value)}${unit ? `<span style="font-size:12px;color:#9ca3af;font-weight:400;">${unit}</span>` : ''}</div></div>`;
       };
+      const perf = googleSignals.performance ?? googleSignals.performance_score;
+      const lcp = googleSignals.lcp ?? (googleSignals.lcp_ms != null ? fmtMs(googleSignals.lcp_ms) : null);
+      const cls = googleSignals.cls != null ? (typeof googleSignals.cls === 'number' ? googleSignals.cls.toFixed(2) : googleSignals.cls) : null;
+      const fcp = googleSignals.fcp ?? (googleSignals.fcp_ms != null ? fmtMs(googleSignals.fcp_ms) : null);
       const items = [
-        fmt('performance', 'Lighthouse', '/100'),
-        fmt('lcp', 'LCP', ''),
-        fmt('cls', 'CLS', ''),
-        fmt('fcp', 'FCP', ''),
+        card('Lighthouse', perf, '/100'),
+        card('LCP', lcp, ''),
+        card('CLS', cls, ''),
+        card('FCP', fcp, ''),
       ].filter(Boolean).join('');
       if (!items) return '';
       return `
