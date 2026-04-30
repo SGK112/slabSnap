@@ -881,6 +881,236 @@ router.post('/compare', graderLimiter, async (req, res) => {
   }
 });
 
+// =============================================================
+// AI ASSISTANT PROBE — does Claude / GPT-4o know this business?
+// Tool #2. Queries 2 LLMs with "Tell me about [business]" and
+// scores each on whether they mention the business by name, cite
+// the right URL, mention the location, and mention services.
+// Tighter rate limit (5/hour/IP) since each probe costs real money.
+// =============================================================
+const aiProbeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: {
+    error: 'Rate limit exceeded',
+    message: 'You can probe the AI assistants up to 5 times per hour. Try again later.',
+    retryAfter: '1 hour',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+});
+
+// Inspect the URL once to derive a business name + location if the
+// caller didn't pass them in. Re-uses the existing WebsiteGrader.
+async function deriveBusinessContext(url) {
+  try {
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) return { businessName: null, location: null, domain: null };
+
+    const $ = grader.$;
+
+    // Name: og:site_name > <title> first segment > domain
+    const ogSite = $('meta[property="og:site_name"]').attr('content');
+    const titleRaw = ($('title').text() || '').trim();
+    const titleFirst = titleRaw.split(/[\|\-—–·]/)[0].trim();
+    const businessName = (ogSite || titleFirst || grader.domain || '').slice(0, 80);
+
+    // Location: hunt for city/state in JSON-LD or meta address
+    let location = null;
+    $('script[type="application/ld+json"]').each((_, s) => {
+      try {
+        const data = JSON.parse($(s).html());
+        const items = Array.isArray(data) ? data : [data];
+        items.forEach((item) => {
+          if (location) return;
+          const addr = item.address || (item['@graph'] && item['@graph'].find?.((g) => g.address)?.address);
+          if (addr) {
+            location = [addr.addressLocality, addr.addressRegion]
+              .filter(Boolean)
+              .join(', ') || null;
+          }
+        });
+      } catch (_) { /* skip bad JSON */ }
+    });
+
+    return { businessName, location, domain: grader.domain };
+  } catch (err) {
+    return { businessName: null, location: null, domain: null, error: err.message };
+  }
+}
+
+// Query Claude Haiku
+async function probeClaude(prompt) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { model: 'claude-haiku-4-5', error: 'not configured' };
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const data = await r.json();
+    if (!r.ok) return { model: 'claude-haiku-4-5', error: data.error?.message || `${r.status}` };
+    return {
+      model: 'claude-haiku-4-5',
+      provider: 'Anthropic Claude',
+      response: data.content?.[0]?.text || '',
+    };
+  } catch (err) {
+    return { model: 'claude-haiku-4-5', error: err.message };
+  }
+}
+
+// Query GPT-4o-mini
+async function probeOpenAI(prompt) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { model: 'gpt-4o-mini', error: 'not configured' };
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const data = await r.json();
+    if (!r.ok) return { model: 'gpt-4o-mini', error: data.error?.message || `${r.status}` };
+    return {
+      model: 'gpt-4o-mini',
+      provider: 'OpenAI GPT-4o',
+      response: data.choices?.[0]?.message?.content || '',
+    };
+  } catch (err) {
+    return { model: 'gpt-4o-mini', error: err.message };
+  }
+}
+
+// Score a model's response against the known facts about the business
+function scoreProbe({ response, businessName, domain, location }) {
+  if (!response) {
+    return {
+      score: 0,
+      mentions_name: false,
+      cites_url: false,
+      mentions_location: false,
+      mentions_services: false,
+    };
+  }
+  const text = response.toLowerCase();
+  const name = (businessName || '').toLowerCase();
+  const dom = (domain || '').toLowerCase().replace(/^www\./, '');
+  const loc = (location || '').toLowerCase();
+
+  const mentions_name = name && text.includes(name);
+  const cites_url = dom && (text.includes(dom) || text.includes(`www.${dom}`));
+  const mentions_location = loc && text.includes(loc.split(',')[0].trim());
+  const mentions_services = /(service|offer|provide|specialize|install|repair|remodel|design|fabricate)/i.test(text);
+
+  let score = 0;
+  if (mentions_name)     score += 40;
+  if (cites_url)         score += 30;
+  if (mentions_location) score += 20;
+  if (mentions_services) score += 10;
+
+  // Penalty for clearly hallucinated content if no name match
+  if (!mentions_name && response.length > 200) score = Math.max(0, score - 10);
+
+  return { score, mentions_name, cites_url, mentions_location, mentions_services };
+}
+
+router.post('/ai-probe', aiProbeLimiter, async (req, res) => {
+  try {
+    const { url, businessName: providedName, location: providedLoc } = req.body || {};
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required' });
+    }
+
+    console.log(`[AI-PROBE] ${url}`);
+
+    // Step 1: derive business context if caller didn't provide it
+    const ctx = await deriveBusinessContext(url);
+    const businessName = providedName || ctx.businessName;
+    const location = providedLoc || ctx.location;
+    const domain = ctx.domain;
+
+    if (!businessName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Could not determine business name from URL. Pass businessName explicitly.',
+      });
+    }
+
+    // Step 2: build the probe prompt
+    const prompt = location
+      ? `Tell me about ${businessName} in ${location}. What services do they offer? Include their website if you know it. Answer naturally as if responding to a real customer asking about a local business.`
+      : `Tell me about ${businessName}. What services do they offer? Include their website if you know it. Answer naturally as if responding to a real customer asking about a business.`;
+
+    // Step 3: query both LLMs in parallel
+    const [claude, openai] = await Promise.all([
+      probeClaude(prompt),
+      probeOpenAI(prompt),
+    ]);
+
+    // Step 4: score each
+    const scoreInputs = { businessName, domain, location };
+    const claudeScore = scoreProbe({ response: claude.response, ...scoreInputs });
+    const openaiScore = scoreProbe({ response: openai.response, ...scoreInputs });
+
+    const results = [
+      { ...claude, ...claudeScore },
+      { ...openai, ...openaiScore },
+    ];
+
+    // Aggregate
+    const validResults = results.filter((r) => !r.error);
+    const overall_score = validResults.length
+      ? Math.round(validResults.reduce((sum, r) => sum + r.score, 0) / validResults.length)
+      : 0;
+    const found_by = validResults.filter((r) => r.mentions_name).length;
+    const cited_correctly_by = validResults.filter((r) => r.cites_url).length;
+
+    let verdict;
+    if (overall_score >= 75)      verdict = 'Strong AI presence — assistants know who you are.';
+    else if (overall_score >= 50) verdict = 'Mixed AI presence — some assistants know you, others don\'t.';
+    else if (overall_score >= 25) verdict = 'Weak AI presence — most assistants don\'t cite you reliably.';
+    else                          verdict = 'Invisible to AI — no assistant returned reliable info about you.';
+
+    return res.json({
+      success: true,
+      url,
+      business: { name: businessName, domain, location },
+      prompt,
+      results,
+      summary: {
+        overall_score,
+        found_by,
+        cited_correctly_by,
+        total_probed: results.length,
+        verdict,
+      },
+    });
+  } catch (error) {
+    console.error('AI probe error:', error);
+    return res.status(500).json({ success: false, error: 'AI probe failed: ' + error.message });
+  }
+});
+
 // Alias for /analyze endpoint (same as /)
 router.post('/analyze', graderLimiter, async (req, res) => {
   try {
