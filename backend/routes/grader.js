@@ -1111,6 +1111,341 @@ router.post('/ai-probe', aiProbeLimiter, async (req, res) => {
   }
 });
 
+// =============================================================
+// CODE SNIPPET FIXER — Tool #3
+// Runs the grader, then for each issue generates a paste-ready
+// snippet with the visitor's actual business data filled in.
+// Web-guy credibility tool: turns advice into code.
+// =============================================================
+
+// Extract structured business data from a fetched page so the
+// snippets we generate have real names / phones / addresses, not
+// {{placeholders}}.
+function extractBusinessData(grader) {
+  const $ = grader.$;
+  const data = {
+    domain: grader.domain,
+    url: grader.url,
+    title: ($('title').text() || '').trim(),
+    description: $('meta[name="description"]').attr('content') || '',
+    name: $('meta[property="og:site_name"]').attr('content') ||
+          ($('title').text() || '').split(/[\|\-—–·]/)[0].trim() ||
+          grader.domain,
+    image: $('meta[property="og:image"]').attr('content') || '',
+    phone: '',
+    email: '',
+    address: { street: '', city: '', region: '', postal: '', country: 'US' },
+    hours: [],
+    schemaTypes: [],
+  };
+
+  // Phone: prefer the first US-format phone in the page text
+  const phoneMatch = (grader.html || '').match(
+    /(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/
+  );
+  if (phoneMatch) data.phone = phoneMatch[0];
+
+  // Email: first non-noreply email
+  const emails = (grader.html || '').match(
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+  ) || [];
+  data.email = emails.find((e) => !/noreply|donotreply|no-reply/i.test(e)) || emails[0] || '';
+
+  // From JSON-LD if present, override with cleaner data
+  $('script[type="application/ld+json"]').each((_, s) => {
+    try {
+      const parsed = JSON.parse($(s).html());
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      items.forEach((item) => {
+        if (!item) return;
+        if (item['@type']) data.schemaTypes.push(item['@type']);
+        if (item.name && !data.name) data.name = item.name;
+        if (item.telephone && !data.phone) data.phone = item.telephone;
+        if (item.email && !data.email) data.email = item.email;
+        if (item.address) {
+          const a = item.address;
+          data.address.street = a.streetAddress || data.address.street;
+          data.address.city = a.addressLocality || data.address.city;
+          data.address.region = a.addressRegion || data.address.region;
+          data.address.postal = a.postalCode || data.address.postal;
+          data.address.country = a.addressCountry || data.address.country;
+        }
+        if (item.openingHours) {
+          data.hours = Array.isArray(item.openingHours) ? item.openingHours : [item.openingHours];
+        }
+      });
+    } catch (_) {}
+  });
+
+  return data;
+}
+
+// Snippet generators — each one produces { id, title, where, why,
+// language, code } given the business data + grader scores.
+function generateSnippets(grader, biz) {
+  const snippets = [];
+  const s = grader.scores;
+
+  // --- META DESCRIPTION ---------------------------------------
+  if (!biz.description || biz.description.length < 120 || biz.description.length > 160) {
+    const tagline = `${biz.name} — call ${biz.phone || 'us'} for a free estimate.`;
+    const target = biz.description && biz.description.length >= 120 && biz.description.length <= 160
+      ? biz.description
+      : `${biz.name} provides professional services in ${biz.address.city || 'your area'}. Licensed, insured, free estimates. ${tagline}`.slice(0, 158);
+    snippets.push({
+      id: 'meta-description',
+      title: 'Meta description',
+      where: 'In your <head>, replace any existing <meta name="description"> tag.',
+      why: 'Google and AI crawlers pull this exact text into search results. 120-160 characters is the sweet spot.',
+      language: 'html',
+      code: `<meta name="description" content="${target}">`,
+    });
+  }
+
+  // --- TITLE TAG ----------------------------------------------
+  if (!biz.title || biz.title.length < 10 || biz.title.length > 60) {
+    const newTitle = `${biz.name}${biz.address.city ? ` | ${biz.address.city}` : ''} — Free Estimates`.slice(0, 60);
+    snippets.push({
+      id: 'title',
+      title: 'Title tag',
+      where: 'In your <head>, replace your existing <title> tag.',
+      why: '50-60 characters, primary keyword first, location second, brand last. Each page should have a unique title.',
+      language: 'html',
+      code: `<title>${newTitle}</title>`,
+    });
+  }
+
+  // --- LOCALBUSINESS JSON-LD SCHEMA ---------------------------
+  if (!biz.schemaTypes.includes('LocalBusiness') &&
+      !biz.schemaTypes.includes('GeneralContractor') &&
+      !biz.schemaTypes.includes('HomeAndConstructionBusiness')) {
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "GeneralContractor",
+      "name": biz.name,
+      "url": biz.url,
+      ...(biz.image && { "image": biz.image }),
+      ...(biz.phone && { "telephone": biz.phone }),
+      ...(biz.email && { "email": biz.email }),
+      "address": {
+        "@type": "PostalAddress",
+        ...(biz.address.street && { "streetAddress": biz.address.street }),
+        ...(biz.address.city && { "addressLocality": biz.address.city }),
+        ...(biz.address.region && { "addressRegion": biz.address.region }),
+        ...(biz.address.postal && { "postalCode": biz.address.postal }),
+        "addressCountry": biz.address.country || "US"
+      },
+      "priceRange": "$$",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "08:00",
+          "closes": "17:00"
+        }
+      ]
+    };
+    snippets.push({
+      id: 'localbusiness-schema',
+      title: 'LocalBusiness JSON-LD schema',
+      where: 'Paste this <script> block right before </head> on every page.',
+      why: 'Tells Google, ChatGPT, Perplexity, and Grok what kind of business you are, where, and how to reach you. Single biggest AI-visibility win.',
+      language: 'html',
+      code: `<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>`,
+    });
+  }
+
+  // --- FAQPAGE SCHEMA --------------------------------------
+  if (!biz.schemaTypes.includes('FAQPage')) {
+    const sampleFaq = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": `How much does ${(biz.name || 'a project').toLowerCase().includes('granite') ? 'a countertop' : 'a typical project'} cost?`,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Pricing depends on size, materials, and finish. We provide free written estimates within 24 hours. Call us or use the contact form."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are you licensed and insured?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. We carry full general liability and workers' comp insurance. License numbers are posted on our About page."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": `What areas do you serve${biz.address.city ? ` near ${biz.address.city}` : ''}?`,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": `${biz.address.city ? `${biz.address.city} and the surrounding metro area. ` : ''}Call to confirm we cover your zip code.`
+          }
+        }
+      ]
+    };
+    snippets.push({
+      id: 'faqpage-schema',
+      title: 'FAQ schema',
+      where: 'Add this <script> to a /faq page (or your homepage if you don\'t have one). Replace the placeholder Q&As with your real FAQ.',
+      why: 'AI assistants love FAQ schema — it lets them quote you directly. Each question is a separate citation opportunity.',
+      language: 'html',
+      code: `<script type="application/ld+json">\n${JSON.stringify(sampleFaq, null, 2)}\n</script>`,
+    });
+  }
+
+  // --- OPEN GRAPH ---------------------------------------------
+  const ogTitle = grader.$('meta[property="og:title"]').attr('content');
+  const ogDesc  = grader.$('meta[property="og:description"]').attr('content');
+  const ogImg   = grader.$('meta[property="og:image"]').attr('content');
+  if (!ogTitle || !ogDesc || !ogImg) {
+    const titleVal = biz.title || biz.name;
+    const descVal = biz.description || `${biz.name} — professional services in ${biz.address.city || 'your area'}. Free estimates.`;
+    snippets.push({
+      id: 'open-graph',
+      title: 'Open Graph tags',
+      where: 'In your <head>. These control how your page looks when shared on Facebook, LinkedIn, iMessage, etc.',
+      why: 'Without OG tags, shared links show a blank preview. With them, you get a branded card with your image.',
+      language: 'html',
+      code:
+`<meta property="og:title" content="${titleVal}">
+<meta property="og:description" content="${descVal}">
+<meta property="og:image" content="${ogImg || biz.url + '/og-image.jpg'}">
+<meta property="og:url" content="${biz.url}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${biz.name}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${titleVal}">
+<meta name="twitter:description" content="${descVal}">
+<meta name="twitter:image" content="${ogImg || biz.url + '/og-image.jpg'}">`,
+    });
+  }
+
+  // --- CANONICAL ---------------------------------------------
+  const canonical = grader.$('link[rel="canonical"]').attr('href');
+  if (!canonical) {
+    snippets.push({
+      id: 'canonical',
+      title: 'Canonical URL',
+      where: 'In your <head>, on every page. Update href to match the page\'s actual URL.',
+      why: 'Tells Google which version of a URL is the "real" one. Prevents duplicate-content penalties.',
+      language: 'html',
+      code: `<link rel="canonical" href="${biz.url}">`,
+    });
+  }
+
+  // --- ROBOTS.TXT ---------------------------------------------
+  // We don't fetch /robots.txt; we just include a starter so the
+  // visitor can drop one in if they don't have one.
+  snippets.push({
+    id: 'robots-txt',
+    title: 'robots.txt',
+    where: `Save as a file at ${biz.url}/robots.txt (root of your site).`,
+    why: 'Tells crawlers what to index and where the sitemap is. ChatGPT/Perplexity bots respect this too.',
+    language: 'plaintext',
+    code:
+`User-agent: *
+Allow: /
+
+# AI assistant crawlers — explicitly allow
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: ${biz.url.replace(/\/$/, '')}/sitemap.xml`,
+  });
+
+  // --- TEL: LINK ----------------------------------------------
+  if (biz.phone) {
+    const telNum = biz.phone.replace(/[^\d+]/g, '');
+    snippets.push({
+      id: 'tel-link',
+      title: 'Make your phone number tappable',
+      where: 'Anywhere you display your phone number. Replace plain text with this link.',
+      why: 'On mobile (where most contractor leads come from now), tapping starts the call instantly. Plain text doesn\'t.',
+      language: 'html',
+      code: `<a href="tel:+1${telNum.replace(/^\+?1?/, '')}">${biz.phone}</a>`,
+    });
+  }
+
+  // --- FALLBACK ALT TEXT --------------------------------------
+  const imgs = grader.$('img');
+  let missingAlt = 0;
+  imgs.each((_, im) => { if (!grader.$(im).attr('alt')) missingAlt++; });
+  if (missingAlt > 0) {
+    snippets.push({
+      id: 'image-alt',
+      title: `Add alt text to ${missingAlt} image${missingAlt === 1 ? '' : 's'}`,
+      where: 'Edit each <img> tag and add an alt="..." attribute that describes what\'s in the image.',
+      why: 'Required for screen readers, helps SEO, and AI assistants use alt text to understand your images. "Image" or "photo" is not useful — describe the actual content.',
+      language: 'html',
+      code:
+`<!-- Bad: -->
+<img src="kitchen.jpg">
+
+<!-- Good: -->
+<img src="kitchen.jpg" alt="Modern white kitchen with quartz countertops we installed in Phoenix, 2025">`,
+    });
+  }
+
+  return snippets;
+}
+
+router.post('/fix-it', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required' });
+    }
+
+    console.log(`[FIX-IT] ${url}`);
+
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) {
+      return res.status(400).json({ success: false, error: 'Could not fetch website' });
+    }
+
+    // Run the same checks as the grader so we know what's missing
+    grader.checkHttps();
+    grader.checkMobileViewport();
+    grader.checkMetaTags();
+    grader.checkHeadings();
+    grader.checkImages();
+    grader.checkStructuredData();
+    grader.checkSocialPresence();
+    grader.checkContactInfo();
+    grader.checkContentQuality();
+
+    const biz = extractBusinessData(grader);
+    const snippets = generateSnippets(grader, biz);
+
+    return res.json({
+      success: true,
+      url: grader.url,
+      domain: grader.domain,
+      business: biz,
+      snippets,
+      total: snippets.length,
+    });
+  } catch (error) {
+    console.error('Fix-it error:', error);
+    return res.status(500).json({ success: false, error: 'Fix-it failed: ' + error.message });
+  }
+});
+
 // Alias for /analyze endpoint (same as /)
 router.post('/analyze', graderLimiter, async (req, res) => {
   try {
