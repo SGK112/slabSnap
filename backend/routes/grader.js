@@ -1446,6 +1446,962 @@ router.post('/fix-it', graderLimiter, async (req, res) => {
   }
 });
 
+// =============================================================
+// TOOL #4: GBP AUDIT — Google Business Profile signals
+// Without GBP API access, audits the page for the signals that
+// connect a site to its GBP listing: LocalBusiness schema NAP,
+// social links to GBP, sameAs references, NAP consistency.
+// =============================================================
+router.post('/gbp', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    console.log(`[GBP] ${url}`);
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) {
+      return res.status(400).json({ success: false, error: 'Could not fetch website' });
+    }
+    grader.checkStructuredData();
+    grader.checkSocialPresence();
+    grader.checkContactInfo();
+
+    const $ = grader.$;
+    const html = grader.html || '';
+    const checks = [];
+
+    // 1. Schema.org LocalBusiness (or subtype) present?
+    const localTypes = ['LocalBusiness', 'GeneralContractor', 'HomeAndConstructionBusiness',
+      'ProfessionalService', 'Plumber', 'Electrician', 'HVACBusiness', 'RoofingContractor'];
+    const hasLocal = (grader.scores.schema_types || []).some((t) => localTypes.includes(t));
+    checks.push({
+      key: 'schema_local',
+      label: 'LocalBusiness schema with NAP',
+      pass: !!hasLocal,
+      detail: hasLocal
+        ? `Found schema type(s): ${grader.scores.schema_types.filter(t => localTypes.includes(t)).join(', ')}`
+        : 'No LocalBusiness or contractor schema detected. AI assistants and Google rely on this to tie your site to your GBP listing.',
+    });
+
+    // 2. Direct link to GBP profile (g.page / google.com/maps / business.google.com)
+    let gbpLink = null;
+    $('a[href]').each((_, a) => {
+      const href = ($(a).attr('href') || '').toLowerCase();
+      if (/g\.page|google\.com\/maps|business\.google\.com|maps\.app\.goo\.gl/.test(href) && !gbpLink) {
+        gbpLink = $(a).attr('href');
+      }
+    });
+    checks.push({
+      key: 'gbp_link',
+      label: 'Direct link to your GBP listing',
+      pass: !!gbpLink,
+      detail: gbpLink
+        ? `Found link: ${gbpLink}`
+        : 'No g.page / Google Maps / business.google.com link found in the page. Add one to your footer or contact section so users (and crawlers) can verify the connection.',
+    });
+
+    // 3. sameAs references in JSON-LD that include the GBP profile
+    let hasSameAsGBP = false;
+    let sameAsList = [];
+    $('script[type="application/ld+json"]').each((_, s) => {
+      try {
+        const parsed = JSON.parse($(s).html());
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        items.forEach((item) => {
+          if (item && Array.isArray(item.sameAs)) {
+            sameAsList.push(...item.sameAs);
+            if (item.sameAs.some((x) => /g\.page|google\.com\/maps|business\.google\.com/.test(String(x)))) {
+              hasSameAsGBP = true;
+            }
+          }
+        });
+      } catch (_) {}
+    });
+    checks.push({
+      key: 'sameAs',
+      label: 'sameAs:[GBP URL] in JSON-LD',
+      pass: hasSameAsGBP,
+      detail: hasSameAsGBP
+        ? `Found GBP URL in sameAs array.`
+        : sameAsList.length
+          ? `sameAs has ${sameAsList.length} entries but no GBP URL. Add your g.page or maps URL.`
+          : 'No sameAs array in your JSON-LD. This is the strongest signal you can give Google to link the site to the listing.',
+    });
+
+    // 4. NAP consistency — phone in schema matches phone in body
+    const phoneInBody = (html.match(/(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/g) || [])
+      .map(p => p.replace(/[^\d]/g, '').slice(-10));
+    let phoneInSchema = null;
+    $('script[type="application/ld+json"]').each((_, s) => {
+      try {
+        const parsed = JSON.parse($(s).html());
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        items.forEach((item) => {
+          if (item && item.telephone && !phoneInSchema) {
+            phoneInSchema = String(item.telephone).replace(/[^\d]/g, '').slice(-10);
+          }
+        });
+      } catch (_) {}
+    });
+    const napMatch = phoneInSchema && phoneInBody.includes(phoneInSchema);
+    checks.push({
+      key: 'nap_consistency',
+      label: 'Phone in schema matches phone in body',
+      pass: !!napMatch,
+      detail: napMatch
+        ? `Schema phone (${phoneInSchema}) appears on the page. Crawlers see one consistent number.`
+        : phoneInSchema
+          ? `Schema phone (${phoneInSchema}) does not appear in the body text. Inconsistent NAP confuses Google.`
+          : 'No telephone field in your JSON-LD. Add it so Google can match your site to your GBP listing.',
+    });
+
+    // 5. Address completeness in schema
+    let hasFullAddress = false;
+    $('script[type="application/ld+json"]').each((_, s) => {
+      try {
+        const parsed = JSON.parse($(s).html());
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        items.forEach((item) => {
+          const a = item && item.address;
+          if (a && a.streetAddress && a.addressLocality && a.addressRegion && a.postalCode) {
+            hasFullAddress = true;
+          }
+        });
+      } catch (_) {}
+    });
+    checks.push({
+      key: 'address_complete',
+      label: 'Full street address in schema',
+      pass: hasFullAddress,
+      detail: hasFullAddress
+        ? `Found streetAddress + city + region + postal code.`
+        : 'Schema is missing one or more address fields. GBP listings need exact NAP match — fill in all of street, city, state, zip.',
+    });
+
+    // 6. Opening hours in schema
+    let hasHours = false;
+    $('script[type="application/ld+json"]').each((_, s) => {
+      try {
+        const parsed = JSON.parse($(s).html());
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        items.forEach((item) => {
+          if (item && (item.openingHours || item.openingHoursSpecification)) {
+            hasHours = true;
+          }
+        });
+      } catch (_) {}
+    });
+    checks.push({
+      key: 'hours',
+      label: 'Opening hours in schema',
+      pass: hasHours,
+      detail: hasHours
+        ? 'Schema declares your hours. AI assistants will report "open now" / "closed now" correctly.'
+        : 'No openingHours or openingHoursSpecification. Add it so ChatGPT can answer "are they open right now?"',
+    });
+
+    const passed = checks.filter(c => c.pass).length;
+    const score = Math.round((passed / checks.length) * 100);
+
+    let verdict;
+    if (score >= 80)      verdict = 'Strong GBP signals — Google should connect your site to your listing.';
+    else if (score >= 50) verdict = 'Mixed signals — fix the failures below to consolidate your local presence.';
+    else                  verdict = 'Weak signals — your site and your GBP listing are probably treated as separate entities.';
+
+    return res.json({
+      success: true,
+      url: grader.url,
+      domain: grader.domain,
+      score,
+      passed,
+      total: checks.length,
+      verdict,
+      checks,
+    });
+  } catch (error) {
+    console.error('GBP audit error:', error);
+    return res.status(500).json({ success: false, error: 'GBP audit failed: ' + error.message });
+  }
+});
+
+// =============================================================
+// TOOL #5: SCHEMA VALIDATOR — Real JSON-LD validation
+// Parses every <script type="application/ld+json">, checks for
+// JSON validity, required schema.org fields per type, common
+// Google Rich Results requirements.
+// =============================================================
+router.post('/schema', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    console.log(`[SCHEMA] ${url}`);
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) {
+      return res.status(400).json({ success: false, error: 'Could not fetch website' });
+    }
+
+    const $ = grader.$;
+    const blocks = [];
+    const blockEls = $('script[type="application/ld+json"]').toArray();
+
+    if (blockEls.length === 0) {
+      return res.json({
+        success: true,
+        url: grader.url,
+        domain: grader.domain,
+        score: 0,
+        verdict: 'No JSON-LD schema found. AI assistants have nothing structured to read.',
+        blocks: [],
+        summary: { total_blocks: 0, valid: 0, invalid: 0, warnings: 0 },
+      });
+    }
+
+    // Required-fields map for common schema types Google rich-results uses
+    const required = {
+      LocalBusiness:        ['name', 'address'],
+      GeneralContractor:    ['name', 'address'],
+      HomeAndConstructionBusiness: ['name', 'address'],
+      Organization:         ['name'],
+      WebSite:              ['name', 'url'],
+      WebPage:              ['name'],
+      FAQPage:              ['mainEntity'],
+      Question:             ['name', 'acceptedAnswer'],
+      Service:              ['name', 'provider'],
+      Product:              ['name'],
+      Review:               ['reviewBody', 'author'],
+      AggregateRating:      ['ratingValue', 'reviewCount'],
+      Article:              ['headline', 'author', 'datePublished'],
+      BreadcrumbList:       ['itemListElement'],
+      HowTo:                ['name', 'step'],
+      Event:                ['name', 'startDate', 'location'],
+    };
+
+    blockEls.forEach((el, i) => {
+      const raw = $(el).html() || '';
+      const block = { index: i, valid: false, types: [], issues: [], warnings: [], snippet: raw.slice(0, 220) };
+
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch (err) {
+        block.issues.push(`Invalid JSON: ${err.message}`);
+        blocks.push(block);
+        return;
+      }
+
+      block.valid = true;
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+
+      const validateNode = (node, path = '$') => {
+        if (!node || typeof node !== 'object') return;
+        const t = node['@type'];
+        const types = Array.isArray(t) ? t : (t ? [t] : []);
+        types.forEach((typeName) => {
+          if (typeName) block.types.push(typeName);
+          const req = required[typeName];
+          if (req) {
+            req.forEach((field) => {
+              if (!(field in node) || node[field] == null || node[field] === '') {
+                block.issues.push(`${path} (${typeName}): missing required field "${field}"`);
+              }
+            });
+          }
+        });
+        // Common warnings
+        if (node['@type'] === 'AggregateRating') {
+          if (!('itemReviewed' in node)) {
+            block.warnings.push(`${path}: AggregateRating without itemReviewed — Google may ignore it`);
+          }
+        }
+        if (node['@type'] === 'Service' && node.aggregateRating && !node.review) {
+          block.warnings.push(`${path}: Service with aggregateRating but no review array — Google flags this in Search Console`);
+        }
+        // Recurse into nested @graph and known nested fields
+        ['@graph', 'mainEntity', 'itemListElement', 'review', 'author', 'provider', 'address']
+          .forEach((k) => {
+            const v = node[k];
+            if (Array.isArray(v)) v.forEach((c, j) => validateNode(c, `${path}.${k}[${j}]`));
+            else if (v && typeof v === 'object') validateNode(v, `${path}.${k}`);
+          });
+      };
+
+      items.forEach((item, j) => validateNode(item, `block[${i}]${items.length > 1 ? `.item[${j}]` : ''}`));
+      block.types = [...new Set(block.types)];
+      blocks.push(block);
+    });
+
+    const valid = blocks.filter(b => b.valid && b.issues.length === 0).length;
+    const invalid = blocks.length - valid;
+    const totalWarnings = blocks.reduce((s, b) => s + b.warnings.length, 0);
+    const totalIssues = blocks.reduce((s, b) => s + b.issues.length, 0);
+
+    let score = 100;
+    score -= invalid * 25;
+    score -= totalIssues * 8;
+    score -= totalWarnings * 4;
+    score = Math.max(0, Math.min(100, score));
+
+    let verdict;
+    if (score >= 90)      verdict = 'Schema looks clean — every block parses and meets required fields.';
+    else if (score >= 70) verdict = 'Mostly valid, a few warnings to address.';
+    else if (score >= 40) verdict = 'Multiple issues — Google may be ignoring some rich-result hints.';
+    else                  verdict = 'Schema is broken or missing required fields. AI crawlers can\'t use it.';
+
+    return res.json({
+      success: true,
+      url: grader.url,
+      domain: grader.domain,
+      score,
+      verdict,
+      blocks,
+      summary: { total_blocks: blocks.length, valid, invalid, total_issues: totalIssues, total_warnings: totalWarnings },
+    });
+  } catch (error) {
+    console.error('Schema validate error:', error);
+    return res.status(500).json({ success: false, error: 'Schema validate failed: ' + error.message });
+  }
+});
+
+// =============================================================
+// TOOL #6: MOBILE UX CHECK
+// Viewport meta, tap-target presence (tel: / mailto:), font-size
+// minimums in inline styles, responsive image markup, hover-only
+// interactions detected in CSS.
+// =============================================================
+router.post('/mobile', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    console.log(`[MOBILE] ${url}`);
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) {
+      return res.status(400).json({ success: false, error: 'Could not fetch website' });
+    }
+
+    const $ = grader.$;
+    const html = grader.html || '';
+    const checks = [];
+
+    // 1. Viewport meta
+    const viewport = $('meta[name="viewport"]').attr('content') || '';
+    const hasViewport = viewport.includes('width=device-width');
+    checks.push({
+      key: 'viewport',
+      label: 'Mobile viewport meta tag',
+      pass: hasViewport,
+      detail: hasViewport
+        ? `Found: ${viewport}`
+        : 'Missing or non-standard <meta name="viewport"> tag. Mobile browsers will render at desktop width and zoom out.',
+    });
+
+    // 2. Phone numbers are clickable as tel: links
+    const phoneRegex = /(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/g;
+    const allPhones = (html.match(phoneRegex) || []).filter((v, i, a) => a.indexOf(v) === i);
+    const telLinks = $('a[href^="tel:"]').length;
+    const phoneCount = allPhones.length;
+    const phoneClickable = phoneCount === 0 ? null : (telLinks >= 1);
+    checks.push({
+      key: 'tel_links',
+      label: phoneCount > 0
+        ? `Phone numbers tappable (tel: links)`
+        : 'Phone numbers tappable',
+      pass: phoneClickable === true,
+      neutral: phoneClickable === null,
+      detail: phoneCount === 0
+        ? 'No phone numbers found on the page. Add one and wire it as <a href="tel:+1...">.'
+        : telLinks >= 1
+          ? `Found ${telLinks} tel: link(s). Mobile visitors can tap to call.`
+          : `Found ${phoneCount} phone number(s) in text but no tel: links. Mobile visitors can\'t tap to call.`,
+    });
+
+    // 3. Email tappable as mailto:
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const allEmails = (html.match(emailRegex) || []).filter((v, i, a) => a.indexOf(v) === i);
+    const mailtoLinks = $('a[href^="mailto:"]').length;
+    const emailClickable = allEmails.length === 0 ? null : (mailtoLinks >= 1);
+    checks.push({
+      key: 'mailto_links',
+      label: 'Emails tappable (mailto: links)',
+      pass: emailClickable === true,
+      neutral: emailClickable === null,
+      detail: allEmails.length === 0
+        ? 'No emails found. Add a contact email wired with <a href="mailto:...">.'
+        : mailtoLinks >= 1
+          ? `Found ${mailtoLinks} mailto: link(s).`
+          : `Found ${allEmails.length} email(s) in text but no mailto: links.`,
+    });
+
+    // 4. Responsive images (srcset / sizes / picture)
+    const imgs = $('img');
+    let responsiveImgs = 0;
+    imgs.each((_, im) => {
+      if ($(im).attr('srcset') || $(im).attr('sizes') || $(im).parent('picture').length) responsiveImgs++;
+    });
+    const imgScore = imgs.length === 0 ? null : (responsiveImgs / imgs.length);
+    checks.push({
+      key: 'responsive_images',
+      label: 'Responsive images',
+      pass: imgScore === null ? null : imgScore >= 0.5,
+      neutral: imgScore === null,
+      detail: imgs.length === 0
+        ? 'No <img> elements on the page.'
+        : `${responsiveImgs} of ${imgs.length} images use srcset / sizes / <picture>. Larger screens download bigger files; mobile gets a smaller version. Add srcset or wrap critical images in <picture>.`,
+    });
+
+    // 5. Hover-only interactions (look for CSS-in-HTML hover rules with no touch fallback)
+    // Limited heuristic: just check for explicit ":hover {" in inline <style> tags
+    const hasHoverOnlyHints = /\:hover\s*\{[^}]*display\s*:/i.test(html);
+    checks.push({
+      key: 'hover_safe',
+      label: 'No hover-only interactions',
+      pass: !hasHoverOnlyHints,
+      detail: hasHoverOnlyHints
+        ? 'Detected :hover rules that toggle display. On touch devices, hover is unreliable — make sure dropdowns, menus, etc. work on tap too.'
+        : 'No suspicious hover-only display toggles in inline styles.',
+    });
+
+    // 6. Font-size minimum readability — heuristic, look for inline styles with very small font
+    const tinyFontHits = (html.match(/font-size\s*:\s*(?:1[01]?|9|8|7|6|5)px/gi) || []).length;
+    checks.push({
+      key: 'font_size',
+      label: 'No tiny inline font-sizes',
+      pass: tinyFontHits === 0,
+      detail: tinyFontHits === 0
+        ? 'No suspicious sub-12px font-size declarations in inline styles.'
+        : `Found ${tinyFontHits} inline font-size declaration(s) under 12px. Mobile users will struggle to read.`,
+    });
+
+    // 7. Mobile-friendly horizontal scroll guard — check for fixed-width inline styles
+    const fixedWidthHits = (html.match(/width\s*:\s*[0-9]{3,4}px/gi) || []).length;
+    checks.push({
+      key: 'no_fixed_widths',
+      label: 'No fixed-pixel widths that overflow mobile',
+      pass: fixedWidthHits < 3,
+      detail: fixedWidthHits < 3
+        ? `Inline width declarations look mobile-friendly (${fixedWidthHits} found).`
+        : `Found ${fixedWidthHits} inline fixed-width declarations. Anything over ~360px overflows small phones and causes horizontal scroll.`,
+    });
+
+    const evaluable = checks.filter(c => c.pass !== null && !c.neutral);
+    const passed = evaluable.filter(c => c.pass).length;
+    const score = evaluable.length ? Math.round((passed / evaluable.length) * 100) : 0;
+
+    let verdict;
+    if (score >= 85)      verdict = 'Mobile UX is solid — visitors can tap, read, and call without friction.';
+    else if (score >= 60) verdict = 'Mostly mobile-friendly with some gaps to close.';
+    else                  verdict = 'Mobile UX is broken in multiple ways. Most contractor leads come from phones — fix this first.';
+
+    return res.json({
+      success: true,
+      url: grader.url,
+      domain: grader.domain,
+      score,
+      passed,
+      total: evaluable.length,
+      verdict,
+      checks,
+    });
+  } catch (error) {
+    console.error('Mobile UX error:', error);
+    return res.status(500).json({ success: false, error: 'Mobile UX check failed: ' + error.message });
+  }
+});
+
+// =============================================================
+// TOOL #7: ACCESSIBILITY (A11Y) CHECK
+// Alt-text quality, heading hierarchy, form labels, lang attribute,
+// skip-link presence, button vs link semantics.
+// =============================================================
+router.post('/a11y', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    console.log(`[A11Y] ${url}`);
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) {
+      return res.status(400).json({ success: false, error: 'Could not fetch website' });
+    }
+
+    const $ = grader.$;
+    const checks = [];
+
+    // 1. <html lang="...">
+    const lang = $('html').attr('lang');
+    checks.push({
+      key: 'lang',
+      label: 'html lang attribute',
+      pass: !!lang,
+      detail: lang ? `Found: lang="${lang}"` : 'Missing <html lang="en"> attribute. Screen readers need this to use the right voice.',
+    });
+
+    // 2. <title> non-empty
+    const title = ($('title').text() || '').trim();
+    checks.push({
+      key: 'title',
+      label: 'Page title present',
+      pass: title.length > 0,
+      detail: title ? `Title: "${title.slice(0, 80)}"` : 'No <title> element found.',
+    });
+
+    // 3. Single H1
+    const h1Count = $('h1').length;
+    checks.push({
+      key: 'single_h1',
+      label: 'Exactly one <h1>',
+      pass: h1Count === 1,
+      detail: h1Count === 1 ? 'Found one h1.' : h1Count === 0 ? 'No h1 element on the page.' : `Found ${h1Count} h1 elements — should be exactly one.`,
+    });
+
+    // 4. Alt text quality (not just presence)
+    const imgs = $('img');
+    let goodAlt = 0;
+    let badAlt = 0;
+    let missingAlt = 0;
+    const badAltExamples = [];
+    imgs.each((_, im) => {
+      const alt = $(im).attr('alt');
+      const src = $(im).attr('src') || '';
+      if (alt === undefined) { missingAlt++; return; }
+      const a = alt.trim().toLowerCase();
+      // Decorative — empty alt is OK
+      if (a === '' && !$(im).attr('role')) { goodAlt++; return; }
+      // Bad: filename or generic
+      if (
+        /^(image|img|photo|picture|graphic|icon)\.?$/i.test(a) ||
+        /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(a) ||
+        a === 'untitled' ||
+        a.length < 4
+      ) {
+        badAlt++;
+        if (badAltExamples.length < 3) badAltExamples.push(`<img src="${src.slice(0, 40)}" alt="${alt}">`);
+        return;
+      }
+      goodAlt++;
+    });
+    checks.push({
+      key: 'alt_quality',
+      label: 'Image alt text is descriptive',
+      pass: imgs.length === 0 ? null : (badAlt === 0 && missingAlt === 0),
+      neutral: imgs.length === 0,
+      detail: imgs.length === 0
+        ? 'No images on this page.'
+        : `${imgs.length} images: ${goodAlt} good, ${badAlt} weak, ${missingAlt} missing. ${badAltExamples.length ? 'Weak examples: ' + badAltExamples.join(' · ') : ''}`,
+    });
+
+    // 5. Form inputs have labels or aria-label
+    const inputs = $('input:not([type="hidden"]), textarea, select');
+    let labeledInputs = 0;
+    let unlabeledInputs = 0;
+    inputs.each((_, inp) => {
+      const id = $(inp).attr('id');
+      const ariaLabel = $(inp).attr('aria-label');
+      const ariaLabelledby = $(inp).attr('aria-labelledby');
+      const placeholder = $(inp).attr('placeholder');
+      const wrappedByLabel = $(inp).parents('label').length > 0;
+      const labelFor = id ? $(`label[for="${id}"]`).length > 0 : false;
+      if (ariaLabel || ariaLabelledby || wrappedByLabel || labelFor) labeledInputs++;
+      else if (placeholder) unlabeledInputs++; // placeholder is not a label, but at least informs
+      else unlabeledInputs++;
+    });
+    checks.push({
+      key: 'form_labels',
+      label: 'Form inputs have labels',
+      pass: inputs.length === 0 ? null : (unlabeledInputs === 0),
+      neutral: inputs.length === 0,
+      detail: inputs.length === 0
+        ? 'No form inputs on the page.'
+        : `${labeledInputs} of ${labeledInputs + unlabeledInputs} inputs have a real label or aria-label. Placeholder text is NOT a substitute for a label.`,
+    });
+
+    // 6. Skip-to-content link
+    const skipLink = $('a[href^="#"]').filter((_, a) => /skip/i.test($(a).text())).length > 0;
+    checks.push({
+      key: 'skip_link',
+      label: 'Skip-to-content link',
+      pass: skipLink,
+      detail: skipLink
+        ? 'Found a "Skip to content" link.'
+        : 'No skip link. Keyboard users tab through the entire nav before reaching content.',
+    });
+
+    // 7. Button vs link semantics — non-anchor buttons should be <button>
+    const fakeButtons = $('div[onclick], span[onclick]').length;
+    checks.push({
+      key: 'button_semantics',
+      label: 'Buttons use <button>, not <div onclick>',
+      pass: fakeButtons === 0,
+      detail: fakeButtons === 0
+        ? 'No <div onclick> or <span onclick> elements — proper semantic buttons.'
+        : `Found ${fakeButtons} <div>/<span> with inline onclick. Use <button> so screen readers and keyboards work.`,
+    });
+
+    // 8. Heading order — h2 before h3 etc
+    const headings = [];
+    $('h1, h2, h3, h4, h5, h6').each((_, h) => headings.push(parseInt(h.tagName[1], 10)));
+    let outOfOrder = false;
+    for (let i = 1; i < headings.length; i++) {
+      if (headings[i] - headings[i - 1] > 1) { outOfOrder = true; break; }
+    }
+    checks.push({
+      key: 'heading_order',
+      label: 'Heading hierarchy is sequential',
+      pass: !outOfOrder,
+      detail: outOfOrder
+        ? 'Some headings skip a level (e.g. h2 directly to h4). Screen readers use heading order to build a page outline.'
+        : 'Heading levels descend in order, no skips.',
+    });
+
+    const evaluable = checks.filter(c => c.pass !== null && !c.neutral);
+    const passed = evaluable.filter(c => c.pass).length;
+    const score = evaluable.length ? Math.round((passed / evaluable.length) * 100) : 0;
+
+    let verdict;
+    if (score >= 85)      verdict = 'Accessibility looks strong — keyboard and screen-reader users can use this site.';
+    else if (score >= 60) verdict = 'Some accessibility gaps. Most are cheap fixes.';
+    else                  verdict = 'Multiple accessibility failures. Web developers will notice.';
+
+    return res.json({
+      success: true,
+      url: grader.url,
+      domain: grader.domain,
+      score,
+      passed,
+      total: evaluable.length,
+      verdict,
+      checks,
+    });
+  } catch (error) {
+    console.error('A11y error:', error);
+    return res.status(500).json({ success: false, error: 'Accessibility check failed: ' + error.message });
+  }
+});
+
+// =============================================================
+// TOOL #8: SITEMAP & ROBOTS AUDIT
+// Fetches /robots.txt and /sitemap.xml, validates structure,
+// checks for AI bot allow rules, validates sitemap freshness.
+// =============================================================
+router.post('/sitemap', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    let normalizedUrl = url.replace(/\/$/, '');
+    if (!normalizedUrl.startsWith('http')) normalizedUrl = 'https://' + normalizedUrl;
+    const origin = new URL(normalizedUrl).origin;
+
+    console.log(`[SITEMAP] ${origin}`);
+
+    const checks = [];
+    const fetchOpt = { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'RemodelyGrader/1.0' } };
+
+    // 1. robots.txt
+    let robotsText = '';
+    let robotsOk = false;
+    try {
+      const r = await fetch(`${origin}/robots.txt`, fetchOpt);
+      robotsOk = r.ok;
+      if (r.ok) robotsText = await r.text();
+    } catch (_) { robotsOk = false; }
+
+    checks.push({
+      key: 'robots_present',
+      label: 'robots.txt exists',
+      pass: robotsOk && robotsText.length > 0,
+      detail: robotsOk
+        ? `Fetched robots.txt (${robotsText.length} bytes).`
+        : 'No robots.txt found at root. Crawlers fall back to default behavior. Add one even if minimal.',
+    });
+
+    // 2. AI bot allow rules
+    const aiBots = ['GPTBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'anthropic-ai', 'Google-Extended'];
+    const aiBotMentions = aiBots.filter((b) => new RegExp(`User-agent:\\s*${b}\\b`, 'i').test(robotsText));
+    const blocksAi = aiBots.some((b) => {
+      const m = new RegExp(`User-agent:\\s*${b}\\b[\\s\\S]*?Disallow:\\s*\\/\\b`, 'i').test(robotsText);
+      return m;
+    });
+    checks.push({
+      key: 'ai_bots_allowed',
+      label: 'robots.txt explicitly handles AI crawlers',
+      pass: aiBotMentions.length > 0 && !blocksAi,
+      detail: aiBotMentions.length === 0
+        ? 'robots.txt does not mention GPTBot / ChatGPT-User / PerplexityBot / ClaudeBot. They\'ll fall back to wildcards but explicit Allow rules are stronger signals.'
+        : blocksAi
+          ? `robots.txt mentions AI bots (${aiBotMentions.join(', ')}) but appears to disallow some. Check this is intentional.`
+          : `robots.txt explicitly handles ${aiBotMentions.length} AI crawler(s): ${aiBotMentions.join(', ')}.`,
+    });
+
+    // 3. Sitemap directive in robots.txt
+    const sitemapMatch = robotsText.match(/Sitemap:\s*(\S+)/i);
+    const declaredSitemap = sitemapMatch ? sitemapMatch[1] : null;
+    checks.push({
+      key: 'sitemap_declared',
+      label: 'Sitemap URL declared in robots.txt',
+      pass: !!declaredSitemap,
+      detail: declaredSitemap
+        ? `Found: ${declaredSitemap}`
+        : 'No "Sitemap:" line in robots.txt. Crawlers use this to find your sitemap.xml — add it.',
+    });
+
+    // 4. sitemap.xml fetchable
+    const sitemapUrl = declaredSitemap || `${origin}/sitemap.xml`;
+    let sitemapText = '';
+    let sitemapOk = false;
+    try {
+      const r = await fetch(sitemapUrl, fetchOpt);
+      sitemapOk = r.ok;
+      if (r.ok) sitemapText = await r.text();
+    } catch (_) { sitemapOk = false; }
+
+    checks.push({
+      key: 'sitemap_present',
+      label: 'sitemap.xml is reachable',
+      pass: sitemapOk && sitemapText.length > 0,
+      detail: sitemapOk
+        ? `Fetched ${sitemapUrl} (${sitemapText.length} bytes).`
+        : `Could not fetch ${sitemapUrl}. Without a sitemap, crawlers find pages only through links.`,
+    });
+
+    // 5. Sitemap structure — count URLs
+    const urlMatches = sitemapText.match(/<url>\s*<loc>/g) || [];
+    const sitemapIndexMatches = sitemapText.match(/<sitemap>\s*<loc>/g) || [];
+    const totalUrls = urlMatches.length;
+    const isIndex = sitemapIndexMatches.length > 0;
+    checks.push({
+      key: 'sitemap_urls',
+      label: 'Sitemap contains URLs',
+      pass: totalUrls > 0 || isIndex,
+      detail: isIndex
+        ? `Sitemap is an index pointing to ${sitemapIndexMatches.length} child sitemaps.`
+        : totalUrls > 0
+          ? `Sitemap declares ${totalUrls} URLs.`
+          : 'Sitemap exists but has no <url> entries. Empty sitemap = no crawl roadmap.',
+    });
+
+    // 6. lastmod freshness — at least one within last 6 months
+    const lastmodDates = sitemapText.match(/<lastmod>([^<]+)<\/lastmod>/g) || [];
+    const sixMonthsAgo = Date.now() - 180 * 24 * 60 * 60 * 1000;
+    const recentLastmods = lastmodDates.filter(m => {
+      const d = m.match(/<lastmod>([^<]+)<\/lastmod>/);
+      if (!d) return false;
+      const t = Date.parse(d[1]);
+      return !isNaN(t) && t > sixMonthsAgo;
+    }).length;
+    checks.push({
+      key: 'sitemap_fresh',
+      label: 'Sitemap has recent lastmod dates',
+      pass: recentLastmods > 0 || lastmodDates.length === 0,
+      detail: lastmodDates.length === 0
+        ? 'No <lastmod> dates in sitemap. Add them so crawlers know what changed since last visit.'
+        : recentLastmods > 0
+          ? `${recentLastmods} of ${lastmodDates.length} entries updated in the last 6 months.`
+          : `${lastmodDates.length} entries but none updated in the last 6 months. Crawlers will deprioritize.`,
+    });
+
+    const evaluable = checks.filter(c => c.pass !== null);
+    const passed = evaluable.filter(c => c.pass).length;
+    const score = evaluable.length ? Math.round((passed / evaluable.length) * 100) : 0;
+
+    let verdict;
+    if (score >= 85)      verdict = 'Crawlers have a clear roadmap of your site.';
+    else if (score >= 60) verdict = 'Some gaps that may slow indexing.';
+    else                  verdict = 'Crawlers are flying blind. Fix robots and sitemap basics.';
+
+    return res.json({
+      success: true,
+      url: origin,
+      domain: new URL(origin).hostname,
+      score,
+      passed,
+      total: evaluable.length,
+      verdict,
+      checks,
+      details: {
+        robots_url: `${origin}/robots.txt`,
+        robots_size: robotsText.length,
+        sitemap_url: sitemapUrl,
+        sitemap_size: sitemapText.length,
+        sitemap_urls: totalUrls,
+        ai_bot_rules: aiBotMentions,
+      },
+    });
+  } catch (error) {
+    console.error('Sitemap audit error:', error);
+    return res.status(500).json({ success: false, error: 'Sitemap audit failed: ' + error.message });
+  }
+});
+
+// =============================================================
+// TOOL #9: HTTPS & SECURITY CHECK
+// HTTPS, mixed content (http:// resources on https page), HSTS
+// header, basic security header presence.
+// =============================================================
+router.post('/https', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    let normalizedUrl = url.replace(/\/$/, '');
+    if (!normalizedUrl.startsWith('http')) normalizedUrl = 'https://' + normalizedUrl;
+
+    console.log(`[HTTPS] ${normalizedUrl}`);
+
+    const checks = [];
+    let response;
+    let html = '';
+    try {
+      response = await fetch(normalizedUrl, {
+        signal: AbortSignal.timeout(15000),
+        redirect: 'follow',
+        headers: { 'User-Agent': 'RemodelyGrader/1.0' },
+      });
+      html = await response.text();
+    } catch (err) {
+      return res.status(400).json({ success: false, error: `Could not fetch: ${err.message}` });
+    }
+
+    const finalUrl = response.url;
+    const isHttps = finalUrl.startsWith('https://');
+
+    // 1. Site uses HTTPS
+    checks.push({
+      key: 'https',
+      label: 'HTTPS enabled',
+      pass: isHttps,
+      detail: isHttps
+        ? `Final URL: ${finalUrl}`
+        : `Final URL is HTTP (${finalUrl}). Modern browsers warn users; AI crawlers deprioritize.`,
+    });
+
+    // 2. HTTP -> HTTPS redirect
+    if (!normalizedUrl.startsWith('http://')) {
+      try {
+        const httpUrl = normalizedUrl.replace(/^https:/, 'http:');
+        const r = await fetch(httpUrl, {
+          signal: AbortSignal.timeout(8000),
+          redirect: 'manual',
+          headers: { 'User-Agent': 'RemodelyGrader/1.0' },
+        });
+        const location = r.headers.get('location') || '';
+        const redirectsToHttps = location.startsWith('https://') || (r.status >= 300 && r.status < 400);
+        checks.push({
+          key: 'http_redirect',
+          label: 'HTTP redirects to HTTPS',
+          pass: redirectsToHttps,
+          detail: redirectsToHttps
+            ? `${httpUrl} returned ${r.status}${location ? ` -> ${location.slice(0, 60)}` : ''}`
+            : `${httpUrl} did not redirect (status ${r.status}). Add a 301 redirect from HTTP to HTTPS.`,
+        });
+      } catch (_) {
+        checks.push({
+          key: 'http_redirect',
+          label: 'HTTP redirects to HTTPS',
+          pass: null,
+          neutral: true,
+          detail: 'Could not test HTTP redirect.',
+        });
+      }
+    }
+
+    // 3. HSTS header
+    const hsts = response.headers.get('strict-transport-security');
+    checks.push({
+      key: 'hsts',
+      label: 'Strict-Transport-Security (HSTS) header',
+      pass: !!hsts,
+      detail: hsts
+        ? `Found: ${hsts}`
+        : 'No HSTS header. Browsers will allow HTTP downgrades on first visit. Add Strict-Transport-Security: max-age=31536000; includeSubDomains.',
+    });
+
+    // 4. X-Content-Type-Options
+    const xcto = response.headers.get('x-content-type-options');
+    checks.push({
+      key: 'xcto',
+      label: 'X-Content-Type-Options: nosniff',
+      pass: xcto === 'nosniff',
+      detail: xcto === 'nosniff'
+        ? 'Header set correctly.'
+        : 'Missing or wrong. Prevents MIME sniffing exploits. Set to "nosniff".',
+    });
+
+    // 5. Referrer-Policy
+    const refPol = response.headers.get('referrer-policy');
+    checks.push({
+      key: 'referrer_policy',
+      label: 'Referrer-Policy header',
+      pass: !!refPol,
+      detail: refPol
+        ? `Found: ${refPol}`
+        : 'No Referrer-Policy. Add "strict-origin-when-cross-origin" or similar to control what gets sent to third parties.',
+    });
+
+    // 6. Mixed content — http:// resources in https page
+    if (isHttps) {
+      const mixedRefs = (html.match(/(src|href)=["']http:\/\/[^"']+["']/gi) || []).length;
+      checks.push({
+        key: 'mixed_content',
+        label: 'No mixed content (http: resources)',
+        pass: mixedRefs === 0,
+        detail: mixedRefs === 0
+          ? 'All in-page resources use https://.'
+          : `Found ${mixedRefs} http:// references on an HTTPS page. Browsers may block these or downgrade the lock icon.`,
+      });
+    }
+
+    // 7. Content-Security-Policy
+    const csp = response.headers.get('content-security-policy');
+    checks.push({
+      key: 'csp',
+      label: 'Content-Security-Policy header',
+      pass: !!csp,
+      neutral: false,
+      detail: csp
+        ? `Set (${csp.length} chars).`
+        : 'No CSP. Optional but recommended — limits where scripts can load from to prevent XSS.',
+    });
+
+    // 8. Server header info disclosure
+    const server = response.headers.get('server');
+    const exposesVersion = server && /[\d.]+/.test(server);
+    checks.push({
+      key: 'server_header',
+      label: 'Server header doesn\'t expose version',
+      pass: !exposesVersion,
+      detail: server
+        ? exposesVersion
+          ? `Server header reveals version: "${server}". Hide or generalize this in your web server config.`
+          : `Server: "${server}" — generic, no version exposed.`
+        : 'No Server header — good.',
+    });
+
+    const evaluable = checks.filter(c => c.pass !== null && !c.neutral);
+    const passed = evaluable.filter(c => c.pass).length;
+    const score = evaluable.length ? Math.round((passed / evaluable.length) * 100) : 0;
+
+    let verdict;
+    if (score >= 85)      verdict = 'Security headers and HTTPS are configured correctly.';
+    else if (score >= 60) verdict = 'Basics covered, some hardening still to do.';
+    else                  verdict = 'Multiple security gaps. Browsers and audits will flag these.';
+
+    return res.json({
+      success: true,
+      url: finalUrl,
+      domain: new URL(finalUrl).hostname,
+      score,
+      passed,
+      total: evaluable.length,
+      verdict,
+      checks,
+    });
+  } catch (error) {
+    console.error('HTTPS audit error:', error);
+    return res.status(500).json({ success: false, error: 'HTTPS audit failed: ' + error.message });
+  }
+});
+
 // Alias for /analyze endpoint (same as /)
 router.post('/analyze', graderLimiter, async (req, res) => {
   try {
