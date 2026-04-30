@@ -798,6 +798,89 @@ router.post('/', graderLimiter, async (req, res) => {
   }
 });
 
+// =============================================================
+// COMPETITOR COMPARE — runs the grader on two URLs and returns a
+// side-by-side diff. Tool #1 in the suite. Rate limit shared with
+// the master grader so two runs count against the same hourly cap.
+// =============================================================
+router.post('/compare', graderLimiter, async (req, res) => {
+  try {
+    const { url1, url2 } = req.body || {};
+
+    if (!url1 || !url2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both url1 and url2 are required'
+      });
+    }
+
+    console.log(`[COMPARE] ${url1}  vs  ${url2}`);
+
+    // Run both in parallel so the user only waits for the slower of the two.
+    const [a, b] = await Promise.all([
+      gradeWebsite(url1).catch((err) => ({ success: false, url: url1, error: err.message })),
+      gradeWebsite(url2).catch((err) => ({ success: false, url: url2, error: err.message })),
+    ]);
+
+    if (!a.success || !b.success) {
+      return res.json({
+        success: false,
+        error: 'One or both sites failed to analyze',
+        a, b,
+      });
+    }
+
+    // Build diff — for each scoreable axis, who wins and by how much
+    const axes = [
+      ['overall',          a.scores.overall,                 b.scores.overall,                 'Overall'],
+      ['ai_visibility',    a.scores.ai_visibility,           b.scores.ai_visibility,           'AI Visibility'],
+      ['meta_tags',        a.scores.seo.meta_tags,           b.scores.seo.meta_tags,           'Meta tags'],
+      ['headings',         a.scores.seo.headings,            b.scores.seo.headings,            'Headings'],
+      ['structured_data',  a.scores.seo.structured_data,     b.scores.seo.structured_data,     'Schema (JSON-LD)'],
+      ['mobile',           a.scores.technical.mobile,        b.scores.technical.mobile,        'Mobile-ready'],
+      ['speed',            a.scores.technical.speed,         b.scores.technical.speed,         'Page speed'],
+      ['https',            a.scores.technical.https,         b.scores.technical.https,         'HTTPS'],
+      ['images',           a.scores.technical.images,        b.scores.technical.images,        'Image optimization'],
+      ['social',           a.scores.presence.social,         b.scores.presence.social,         'Social presence'],
+      ['contact',          a.scores.presence.contact,        b.scores.presence.contact,        'Contact info'],
+      ['content',          a.scores.presence.content,        b.scores.presence.content,        'Content depth'],
+    ];
+
+    const diff = axes.map(([key, av, bv, label]) => {
+      const delta = (av || 0) - (bv || 0);
+      let winner = 'tie';
+      if (delta >= 5)       winner = 'a';
+      else if (delta <= -5) winner = 'b';
+      return {
+        key, label,
+        a: av || 0,
+        b: bv || 0,
+        delta,
+        winner,
+      };
+    });
+
+    const aWins = diff.filter((d) => d.winner === 'a').length;
+    const bWins = diff.filter((d) => d.winner === 'b').length;
+    const ties  = diff.filter((d) => d.winner === 'tie').length;
+
+    let verdict = 'tie';
+    if (aWins > bWins + 1)      verdict = 'a';
+    else if (bWins > aWins + 1) verdict = 'b';
+
+    return res.json({
+      success: true,
+      a: { url: a.url, domain: a.domain, scores: a.scores, details: a.details, issues: a.issues, recommendations: a.recommendations },
+      b: { url: b.url, domain: b.domain, scores: b.scores, details: b.details, issues: b.issues, recommendations: b.recommendations },
+      diff,
+      summary: { aWins, bWins, ties, verdict, totalAxes: diff.length },
+    });
+  } catch (error) {
+    console.error('Compare error:', error);
+    return res.status(500).json({ success: false, error: 'Compare failed: ' + error.message });
+  }
+});
+
 // Alias for /analyze endpoint (same as /)
 router.post('/analyze', graderLimiter, async (req, res) => {
   try {
