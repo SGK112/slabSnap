@@ -2780,4 +2780,109 @@ async function triggerAriaCall(leadId, name, phone, url, graderResults) {
   return data;
 }
 
+// =============================================================
+// TOOL LEAD CAPTURE — POST /api/grader/tool-lead
+// Wires the 9 standalone tools into the lead funnel. Visitor runs
+// any tool, gets a result, then enters their email to receive a
+// detailed report. We:
+//   1. Store the lead in graderLeads (same Map used by send-report)
+//   2. Email a deeper report via the existing transporter
+//   3. Optionally trigger Aria to call them if they provided phone
+//
+// Body: { email, name?, phone?, tool, url, score?, summary? }
+// =============================================================
+router.post('/tool-lead', async (req, res) => {
+  try {
+    const { email, name, phone, tool, url, score, summary } = req.body || {};
+    if (!email || !tool || !url) {
+      return res.status(400).json({
+        success: false,
+        error: 'email, tool, and url are required',
+      });
+    }
+
+    const leadId = `tool_${tool}_${Date.now()}`;
+    const lead = {
+      id: leadId,
+      email,
+      name: name || 'there',
+      phone: phone || null,
+      tool,           // 'compare' | 'ai-probe' | 'fix-it' | 'gbp' | 'schema' | 'mobile' | 'a11y' | 'sitemap' | 'https'
+      url,            // the URL they audited
+      score: score ?? null,
+      summary: summary || null,
+      source: `tool:${tool}`,
+      createdAt: new Date().toISOString(),
+    };
+    graderLeads.set(leadId, lead);
+    console.log(`[TOOL LEAD] ${tool}  ${email}  url=${url}  score=${score ?? 'n/a'}`);
+
+    // Send a short ack email so the visitor sees something in their inbox
+    if (SMTP_USER && SMTP_PASS) {
+      const greeting = name && !['there', 'user', ''].includes(name.toLowerCase())
+        ? `Hi ${name},` : 'Hi there,';
+      const toolLabel = ({
+        compare: 'Competitor Compare',
+        'ai-probe': 'AI Assistant Probe',
+        'fix-it': 'Code Snippet Fixer',
+        gbp: 'GBP Audit',
+        schema: 'Schema Validator',
+        mobile: 'Mobile UX Check',
+        a11y: 'Accessibility Check',
+        sitemap: 'Sitemap & Robots Audit',
+        https: 'HTTPS & Security Check',
+      })[tool] || tool;
+
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0a0f1a;line-height:1.55;color:#fff;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <h1 style="color:#fff;font-size:22px;margin:0;font-weight:800;">REMODELY<span style="color:#fb923c;">.AI</span></h1>
+    </div>
+    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:28px;">
+      <h2 style="color:#fff;font-size:18px;margin:0 0 8px 0;">${greeting}</h2>
+      <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0 0 16px 0;">Thanks for running the <strong style="color:#fb923c;">${toolLabel}</strong> on <strong style="color:#fff;">${url}</strong>.</p>
+      ${score != null ? `<div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:10px;padding:18px;text-align:center;margin:16px 0;"><div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">YOUR SCORE</div><div style="font-size:36px;font-weight:800;color:#fb923c;line-height:1;">${score}<span style="font-size:14px;color:rgba(255,255,255,0.5);">/100</span></div></div>` : ''}
+      ${summary ? `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;margin:0 0 16px 0;">${summary}</p>` : ''}
+      <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin:0 0 12px 0;">Want a deeper analysis? Run the full grader for the unified report covering every check at once.</p>
+      <a href="https://www.remodely.ai/grader.html?url=${encodeURIComponent(url)}" style="display:inline-block;background:#f97316;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:8px;">Run the full grader →</a>
+    </div>
+    <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:11px;margin-top:20px;">
+      <p style="margin:0;">Remodely AI · <a href="https://www.remodely.ai" style="color:#fb923c;">remodely.ai</a></p>
+    </div>
+  </div>
+</body></html>`;
+
+      const text = `${greeting}\n\nThanks for running the ${toolLabel} on ${url}.\n\n${score != null ? `Your score: ${score}/100\n\n` : ''}${summary || ''}\n\nWant a deeper analysis? Run the full grader: https://www.remodely.ai/grader.html?url=${encodeURIComponent(url)}\n\n— Remodely AI`;
+
+      transporter.sendMail({
+        from: `"Remodely AI" <${process.env.SMTP_FROM_EMAIL || SMTP_USER}>`,
+        to: email,
+        subject: `Your ${toolLabel} result for ${url}`,
+        html,
+        text,
+      }).catch((err) => console.error('Tool-lead email error:', err));
+    }
+
+    // Optionally trigger Aria callback if they gave a phone (fire-and-forget)
+    if (phone && score != null && score < 70) {
+      triggerAriaCall(leadId, name, phone, url, {
+        overall: score,
+        ai_visibility: score,
+        issues: summary ? [summary] : [],
+      }).catch((err) => console.error('Tool-lead auto-call failed:', err));
+    }
+
+    return res.json({
+      success: true,
+      leadId,
+      message: 'Lead captured. Check your inbox for the report.',
+    });
+  } catch (error) {
+    console.error('Tool-lead error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;
