@@ -2817,8 +2817,11 @@ router.post('/tool-lead', async (req, res) => {
     graderLeads.set(leadId, lead);
     console.log(`[TOOL LEAD] ${tool}  ${email}  url=${url}  score=${score ?? 'n/a'}`);
 
-    // Send a short ack email so the visitor sees something in their inbox
-    if (SMTP_USER && SMTP_PASS) {
+    // Send a short ack email so the visitor sees something in their inbox.
+    // Lead is ALREADY captured above — email is best-effort, don't 500 if SMTP
+    // is unconfigured (was a ReferenceError on bare SMTP_USER which dropped
+    // every tool-form lead).
+    if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
       const greeting = name && !['there', 'user', ''].includes(name.toLowerCase())
         ? `Hi ${name},` : 'Hi there,';
       const toolLabel = ({
@@ -2857,7 +2860,7 @@ router.post('/tool-lead', async (req, res) => {
       const text = `${greeting}\n\nThanks for running the ${toolLabel} on ${url}.\n\n${score != null ? `Your score: ${score}/100\n\n` : ''}${summary || ''}\n\nWant a deeper analysis? Run the full grader: https://www.remodely.ai/grader.html?url=${encodeURIComponent(url)}\n\n— Remodely AI`;
 
       transporter.sendMail({
-        from: `"Remodely AI" <${process.env.SMTP_FROM_EMAIL || SMTP_USER}>`,
+        from: `"Remodely AI" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
         to: email,
         subject: `Your ${toolLabel} result for ${url}`,
         html,
