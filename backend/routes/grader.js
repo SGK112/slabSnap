@@ -2885,4 +2885,329 @@ router.post('/tool-lead', async (req, res) => {
   }
 });
 
+// =============================================================
+// TOOL #10: SEO CHECKLIST — Comprehensive SEO/marketing setup scanner
+// Detects which of the 20+ free tools and signals a contractor site
+// has wired up. Categorized: Critical, Important, Nice-to-have.
+// =============================================================
+router.post('/seo-checklist', graderLimiter, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
+
+    console.log(`[SEO-CHECKLIST] ${url}`);
+    const grader = new WebsiteGrader(url);
+    if (!(await grader.fetchPage())) {
+      return res.status(400).json({ success: false, error: 'Could not fetch website' });
+    }
+    grader.checkStructuredData();
+
+    const $ = grader.$;
+    const html = grader.html || '';
+    const lower = html.toLowerCase();
+    const finalUrl = grader.url || url;
+
+    const linkHrefs = [];
+    $('a[href]').each((_, a) => linkHrefs.push(($(a).attr('href') || '').toLowerCase()));
+    const scriptSrcs = [];
+    $('script[src]').each((_, s) => scriptSrcs.push(($(s).attr('src') || '').toLowerCase()));
+    const metaNames = {};
+    $('meta[name]').each((_, m) => { metaNames[($(m).attr('name') || '').toLowerCase()] = $(m).attr('content') || ''; });
+    const metaProps = {};
+    $('meta[property]').each((_, m) => { metaProps[($(m).attr('property') || '').toLowerCase()] = $(m).attr('content') || ''; });
+
+    const has = (re) => re.test(lower) || scriptSrcs.some(s => re.test(s)) || linkHrefs.some(h => re.test(h));
+    const hasMeta = (name) => !!metaNames[name.toLowerCase()];
+    const hasOG = (prop) => !!metaProps[prop.toLowerCase()];
+
+    // ---- HEAD checks for sitemap/robots (parallel) ----
+    const origin = (() => { try { return new URL(finalUrl).origin; } catch (_) { return null; } })();
+    let sitemapStatus = false, robotsStatus = false, faviconStatus = false;
+    if (origin) {
+      const headOk = async (path) => {
+        try {
+          const r = await fetch(origin + path, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) });
+          return r.ok;
+        } catch (_) { return false; }
+      };
+      [sitemapStatus, robotsStatus, faviconStatus] = await Promise.all([
+        headOk('/sitemap.xml'),
+        headOk('/robots.txt'),
+        headOk('/favicon.ico'),
+      ]);
+    }
+
+    const checks = [];
+    const add = (tier, label, pass, detail, fixUrl) => checks.push({ tier, label, pass, detail, fixUrl });
+
+    // ---- CRITICAL TIER ----
+    add('critical',
+      'HTTPS / SSL',
+      finalUrl.startsWith('https://'),
+      finalUrl.startsWith('https://')
+        ? 'Site is served over HTTPS. Required by every modern crawler and browser.'
+        : 'Site is on plain HTTP. Google treats this as untrusted and ranks it lower; Chrome shows a "Not Secure" warning.',
+      'https://letsencrypt.org/'
+    );
+
+    add('critical',
+      'Mobile viewport meta',
+      hasMeta('viewport'),
+      hasMeta('viewport')
+        ? 'Has viewport meta — phones render the page correctly.'
+        : 'Missing <meta name="viewport"> — mobile users see desktop layout shrunk to thumbnail size. Adds <meta name="viewport" content="width=device-width, initial-scale=1">.',
+      null
+    );
+
+    add('critical',
+      'Google Analytics 4 (or Tag Manager)',
+      has(/googletagmanager\.com\/gtag\/js\?id=g-/i) || has(/googletagmanager\.com\/gtm\.js/i) || has(/gtag\(['"]config['"],\s*['"]g-/i),
+      (has(/gtag/i) || has(/googletagmanager/i))
+        ? 'GA4 / Google Tag Manager detected — you can see traffic and conversions.'
+        : 'No analytics detected. Without GA4 you cannot tell which pages convert, where leads come from, or whether ad spend is working.',
+      'https://analytics.google.com/'
+    );
+
+    add('critical',
+      'Google Search Console verification',
+      hasMeta('google-site-verification'),
+      hasMeta('google-site-verification')
+        ? 'GSC ownership verification meta tag present. (DNS-method verification is invisible to this scan but still valid.)'
+        : 'No google-site-verification meta tag. You cannot submit sitemaps, request indexing, or see Google search performance until verified.',
+      'https://search.google.com/search-console'
+    );
+
+    add('critical',
+      'Bing Webmaster Tools verification',
+      hasMeta('msvalidate.01'),
+      hasMeta('msvalidate.01')
+        ? 'Bing ownership verified — Bing/Yahoo/Copilot/ChatGPT search can index the site.'
+        : 'No msvalidate.01 meta tag. Bing powers ~10% of US search plus most LLM-grounded answers (ChatGPT search, Copilot). Free to verify.',
+      'https://www.bing.com/webmasters'
+    );
+
+    add('critical',
+      'sitemap.xml accessible',
+      sitemapStatus,
+      sitemapStatus
+        ? '/sitemap.xml returns 200 — search engines can discover all pages.'
+        : 'No /sitemap.xml found. Without one, Google has to discover pages by crawling links and may miss deep pages entirely.',
+      null
+    );
+
+    add('critical',
+      'robots.txt accessible',
+      robotsStatus,
+      robotsStatus
+        ? '/robots.txt returns 200 — crawlers know what they can and cannot fetch.'
+        : 'No /robots.txt found. Crawlers will guess; you cannot block /admin or signal your sitemap location.',
+      null
+    );
+
+    // ---- IMPORTANT TIER ----
+    const localTypes = ['LocalBusiness', 'GeneralContractor', 'HomeAndConstructionBusiness',
+      'ProfessionalService', 'Plumber', 'Electrician', 'HVACBusiness', 'RoofingContractor', 'Organization'];
+    const hasOrgSchema = (grader.scores.schema_types || []).some(t => localTypes.includes(t));
+    add('important',
+      'Organization / LocalBusiness schema',
+      hasOrgSchema,
+      hasOrgSchema
+        ? `JSON-LD schema present: ${(grader.scores.schema_types || []).filter(t => localTypes.includes(t)).join(', ')}`
+        : 'No Organization or LocalBusiness JSON-LD. AI assistants (ChatGPT, Perplexity) read this to know what your business is and where it is.',
+      'https://search.google.com/test/rich-results'
+    );
+
+    const hasGbpLink = linkHrefs.some(h => /g\.page|google\.com\/maps|business\.google\.com|maps\.app\.goo\.gl/.test(h));
+    add('important',
+      'Google Business Profile link',
+      hasGbpLink,
+      hasGbpLink
+        ? 'Site links to your GBP listing — Google connects the two entities.'
+        : 'No g.page / google.com/maps link found. Add one to your footer or contact page so Google ties the site to the listing.',
+      'https://www.google.com/business/'
+    );
+
+    add('important',
+      'Open Graph meta tags',
+      hasOG('og:title') && hasOG('og:image'),
+      (hasOG('og:title') && hasOG('og:image'))
+        ? 'og:title + og:image present — link previews on iMessage, Slack, Facebook, LinkedIn show correctly.'
+        : 'Missing og:title or og:image. When someone shares your URL in iMessage or Slack, the preview will be blank or wrong.',
+      null
+    );
+
+    add('important',
+      'Twitter Card meta',
+      hasMeta('twitter:card'),
+      hasMeta('twitter:card')
+        ? 'twitter:card declared — proper preview on X/Twitter shares.'
+        : 'No twitter:card meta. X/Twitter links render as plain text instead of rich cards.',
+      null
+    );
+
+    add('important',
+      'Canonical tag',
+      $('link[rel="canonical"]').length > 0,
+      $('link[rel="canonical"]').length > 0
+        ? `Declared canonical: ${$('link[rel="canonical"]').attr('href')}`
+        : 'No <link rel="canonical">. Google may treat ?utm=… and trailing-slash variants as duplicate pages, splitting ranking signals.',
+      null
+    );
+
+    add('important',
+      'Favicon',
+      faviconStatus || $('link[rel*="icon"]').length > 0,
+      (faviconStatus || $('link[rel*="icon"]').length > 0)
+        ? 'Favicon detected — shows in browser tabs, bookmarks, and Google search results.'
+        : 'No favicon. Browser tabs and Google SERPs show a blank icon — looks unfinished.',
+      null
+    );
+
+    // ---- NICE-TO-HAVE TIER ----
+    add('nice',
+      'Google Tag Manager',
+      has(/googletagmanager\.com\/gtm\.js/i),
+      has(/googletagmanager\.com\/gtm\.js/i)
+        ? 'GTM container loaded — you can manage pixels and tags without code changes.'
+        : 'No GTM. Optional but recommended — lets you add Facebook Pixel, conversion tags, etc. without redeploying.',
+      'https://tagmanager.google.com/'
+    );
+
+    add('nice',
+      'YouTube channel link',
+      linkHrefs.some(h => /youtube\.com\/(c\/|channel\/|@|user\/)/.test(h)),
+      linkHrefs.some(h => /youtube\.com\/(c\/|channel\/|@|user\/)/.test(h))
+        ? 'YouTube channel linked.'
+        : 'No YouTube channel link. Google owns YouTube and weighs video heavily; even a few project walkthroughs help SEO.',
+      null
+    );
+
+    add('nice',
+      'Facebook Business page',
+      linkHrefs.some(h => /facebook\.com\//.test(h) && !/sharer|share\.php/.test(h)),
+      linkHrefs.some(h => /facebook\.com\//.test(h) && !/sharer/.test(h))
+        ? 'Facebook profile linked.'
+        : 'No Facebook page link. Citations across major social networks help local SEO.',
+      null
+    );
+
+    add('nice',
+      'Instagram profile',
+      linkHrefs.some(h => /instagram\.com\//.test(h)),
+      linkHrefs.some(h => /instagram\.com\//.test(h))
+        ? 'Instagram profile linked.'
+        : 'No Instagram link. Project photos belong on Instagram for both clients and SEO citations.',
+      null
+    );
+
+    add('nice',
+      'LinkedIn page',
+      linkHrefs.some(h => /linkedin\.com\/(company|in)\//.test(h)),
+      linkHrefs.some(h => /linkedin\.com\/(company|in)\//.test(h))
+        ? 'LinkedIn profile linked.'
+        : 'No LinkedIn link. Useful for commercial/B2B work and adds an authoritative citation.',
+      null
+    );
+
+    add('nice',
+      'Yelp listing',
+      linkHrefs.some(h => /yelp\.com\/biz\//.test(h)),
+      linkHrefs.some(h => /yelp\.com\/biz\//.test(h))
+        ? 'Yelp link present.'
+        : 'No Yelp listing link. Yelp powers Apple Maps + Siri results for "near me" queries.',
+      'https://biz.yelp.com/'
+    );
+
+    add('nice',
+      'Houzz Pro',
+      linkHrefs.some(h => /houzz\.com\/pro\//.test(h) || /houzz\.com\/professionals/.test(h)),
+      linkHrefs.some(h => /houzz\.com\/(pro|professionals)/.test(h))
+        ? 'Houzz Pro linked — high-intent remodeling traffic.'
+        : 'No Houzz link. For remodeling/kitchens/baths, Houzz is where homeowners actually shop. Free profile.',
+      'https://www.houzz.com/pro'
+    );
+
+    add('nice',
+      'Angi / HomeAdvisor',
+      linkHrefs.some(h => /angi\.com|homeadvisor\.com/.test(h)),
+      linkHrefs.some(h => /angi\.com|homeadvisor\.com/.test(h))
+        ? 'Angi/HomeAdvisor profile linked.'
+        : 'No Angi or HomeAdvisor citation. They rank in their own SERPs and feed lead networks.',
+      'https://www.angi.com/'
+    );
+
+    add('nice',
+      'Nextdoor for Business',
+      linkHrefs.some(h => /nextdoor\.com\/(pages|profile)/.test(h)),
+      linkHrefs.some(h => /nextdoor\.com/.test(h))
+        ? 'Nextdoor Business linked — neighbor word-of-mouth.'
+        : 'No Nextdoor presence. Free; the highest-trust local-recommendation platform.',
+      'https://business.nextdoor.com/'
+    );
+
+    add('nice',
+      'BBB profile',
+      linkHrefs.some(h => /bbb\.org\/.+\/(profile|business)/.test(h)),
+      linkHrefs.some(h => /bbb\.org/.test(h))
+        ? 'BBB profile linked.'
+        : 'No BBB citation. Older homeowners still check BBB; counts as a trust signal for AI summaries.',
+      'https://www.bbb.org/get-accredited'
+    );
+
+    add('nice',
+      'Apple Maps Connect',
+      // Indirect signal: Yelp + GBP + sameAs covers it; flag as TODO if no sameAs
+      linkHrefs.some(h => /maps\.apple\.com|appleid\.apple\.com\/maps/.test(h)),
+      linkHrefs.some(h => /maps\.apple\.com/.test(h))
+        ? 'Apple Maps link found.'
+        : 'No Apple Maps presence detected. Free at mapsconnect.apple.com — covers iPhone Siri + Apple Maps "near me" results.',
+      'https://mapsconnect.apple.com/'
+    );
+
+    add('nice',
+      'FAQ schema',
+      (grader.scores.schema_types || []).includes('FAQPage'),
+      (grader.scores.schema_types || []).includes('FAQPage')
+        ? 'FAQPage schema present — eligible for FAQ rich results in SERPs.'
+        : 'No FAQPage schema. Adds "expandable FAQs" directly under your search result — major CTR boost.',
+      'https://search.google.com/test/rich-results'
+    );
+
+    // ---- Score by tier ----
+    const tierStats = (tier) => {
+      const items = checks.filter(c => c.tier === tier);
+      const passed = items.filter(c => c.pass).length;
+      return { tier, passed, total: items.length, score: items.length ? Math.round((passed / items.length) * 100) : 0 };
+    };
+
+    const critical = tierStats('critical');
+    const important = tierStats('important');
+    const nice = tierStats('nice');
+
+    // Overall: critical weighted 50%, important 30%, nice 20%
+    const overall = Math.round(
+      (critical.score * 0.5) + (important.score * 0.3) + (nice.score * 0.2)
+    );
+
+    let verdict;
+    if (overall >= 85)      verdict = 'Strong setup. Most contractors do not get this far. Now focus on content + backlinks.';
+    else if (overall >= 60) verdict = 'Decent foundation but the gaps below are leaving traffic on the table.';
+    else if (overall >= 35) verdict = 'You are running a website with the marketing infrastructure half-installed. The fixes below take an afternoon.';
+    else                    verdict = 'Almost none of the free distribution is wired up. Search engines and AI assistants barely know you exist.';
+
+    return res.json({
+      success: true,
+      url: finalUrl,
+      domain: grader.domain,
+      score: overall,
+      verdict,
+      tiers: { critical, important, nice },
+      checks,
+    });
+  } catch (error) {
+    console.error('SEO checklist error:', error);
+    return res.status(500).json({ success: false, error: 'Checklist failed: ' + error.message });
+  }
+});
+
 export default router;
