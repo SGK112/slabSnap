@@ -2525,24 +2525,24 @@ router.post('/send-report', async (req, res) => {
     const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
     const quickWinsHtml = quickWins.length ? `
-    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px;margin-bottom:24px;">
-      <div style="color:#3b82f6;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Quick Wins — DIY Fixes</div>
-      <h3 style="color:#fff;font-size:20px;margin:0 0 16px 0;">Fix these first. No developer needed.</h3>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:24px;">
+      <div style="color:#c2410c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Quick Wins — DIY Fixes</div>
+      <h3 style="color:#0f172a;font-size:20px;margin:0 0 16px 0;">Fix these first. No developer needed.</h3>
       ${quickWins.map((qw, i) => {
         const pb = findPlaybookEntry(qw.title);
         return `
-        <div style="border-top:1px solid rgba(255,255,255,0.08);padding:18px 0;">
+        <div style="border-top:1px solid #e2e8f0;padding:18px 0;">
           <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="flex-shrink:0;width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,0.15);color:#60a5fa;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${i + 1}</div>
+            <div style="flex-shrink:0;width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,0.15);color:#c2410c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${i + 1}</div>
             <div style="flex:1;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;">
-                <strong style="color:#fff;font-size:16px;">${escape(qw.title)}</strong>
-                ${qw.time ? `<span style="background:rgba(34,197,94,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${escape(qw.time)}</span>` : ''}
+                <strong style="color:#0f172a;font-size:16px;">${escape(qw.title)}</strong>
+                ${qw.time ? `<span style="background:#bbf7d0;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${escape(qw.time)}</span>` : ''}
               </div>
-              ${qw.desc ? `<p style="color:#9ca3af;margin:0 0 8px 0;font-size:14px;">${escape(qw.desc)}</p>` : ''}
+              ${qw.desc ? `<p style="color:#64748b;margin:0 0 8px 0;font-size:14px;">${escape(qw.desc)}</p>` : ''}
               ${pb ? `
-                <p style="color:#cbd5e1;margin:0 0 8px 0;font-size:14px;line-height:1.55;"><strong style="color:#fff;">How to fix:</strong> ${pb.how}</p>
-                <a href="${escape(pb.link)}" style="color:#60a5fa;text-decoration:none;font-size:13px;font-weight:600;">→ ${escape(pb.linkText)}</a>
+                <p style="color:#475569;margin:0 0 8px 0;font-size:14px;line-height:1.55;"><strong style="color:#0f172a;">How to fix:</strong> ${pb.how}</p>
+                <a href="${escape(pb.link)}" style="color:#c2410c;text-decoration:none;font-size:13px;font-weight:600;">→ ${escape(pb.linkText)}</a>
               ` : ''}
             </div>
           </div>
@@ -2557,7 +2557,7 @@ router.post('/send-report', async (req, res) => {
       const fmtMs = (ms) => ms == null ? null : (ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : Math.round(ms) + 'ms');
       const card = (label, value, unit) => {
         if (value == null || value === '' || value === 'Unavailable') return '';
-        return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;text-align:center;"><div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${label}</div><div style="color:#fff;font-size:18px;font-weight:700;">${escape(value)}${unit ? `<span style="font-size:12px;color:#9ca3af;font-weight:400;">${unit}</span>` : ''}</div></div>`;
+        return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;"><div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">${label}</div><div style="color:#0f172a;font-size:18px;font-weight:700;">${escape(value)}${unit ? `<span style="font-size:12px;color:#64748b;font-weight:400;">${unit}</span>` : ''}</div></div>`;
       };
       const perf = googleSignals.performance ?? googleSignals.performance_score;
       const lcp = googleSignals.lcp ?? (googleSignals.lcp_ms != null ? fmtMs(googleSignals.lcp_ms) : null);
@@ -2571,28 +2571,28 @@ router.post('/send-report', async (req, res) => {
       ].filter(Boolean).join('');
       if (!items) return '';
       return `
-    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="color:#3b82f6;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Google Signals</div>
-      <h3 style="color:#fff;font-size:18px;margin:0 0 16px 0;">PageSpeed mobile field data</h3>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#c2410c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Google Signals</div>
+      <h3 style="color:#0f172a;font-size:18px;margin:0 0 16px 0;">PageSpeed mobile field data</h3>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div>
     </div>`;
     })();
 
     const issuesHtml = issues.length ? `
-    <div style="background:#131c2e;border:1px solid rgba(239,68,68,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
+    <div style="background:#ffffff;border:1px solid rgba(239,68,68,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
       <div style="color:#ef4444;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Issues Detected</div>
-      <h3 style="color:#fff;font-size:18px;margin:0 0 12px 0;">What's hurting your score</h3>
+      <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">What's hurting your score</h3>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${issues.map(i => `<li style="color:#cbd5e1;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#ef4444;">!</span>${escape(i)}</li>`).join('')}
+        ${issues.map(i => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#ef4444;">!</span>${escape(i)}</li>`).join('')}
       </ul>
     </div>` : '';
 
     const recsHtml = recommendations.length ? `
-    <div style="background:#131c2e;border:1px solid rgba(34,197,94,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
+    <div style="background:#ffffff;border:1px solid rgba(34,197,94,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
       <div style="color:#22c55e;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
-      <h3 style="color:#fff;font-size:18px;margin:0 0 12px 0;">Bigger improvements once Quick Wins are done</h3>
+      <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">Bigger improvements once Quick Wins are done</h3>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${recommendations.map(r => `<li style="color:#cbd5e1;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#22c55e;">+</span>${escape(r)}</li>`).join('')}
+        ${recommendations.map(r => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#22c55e;">+</span>${escape(r)}</li>`).join('')}
       </ul>
     </div>` : '';
 
@@ -2606,42 +2606,42 @@ router.post('/send-report', async (req, res) => {
       ].filter(l => l.url);
       if (!links.length) return '';
       return `
-    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="color:#3b82f6;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Free Tools — Test Your Fixes</div>
-      <h3 style="color:#fff;font-size:18px;margin:0 0 12px 0;">Use these to verify each change you make</h3>
-      ${links.map(l => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><a href="${escape(l.url)}" style="color:#60a5fa;text-decoration:none;font-weight:600;font-size:14px;">→ ${escape(l.label)}</a><div style="color:#9ca3af;font-size:12px;margin-top:2px;">${escape(l.tool)}</div></div>`).join('')}
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#c2410c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Free Tools — Test Your Fixes</div>
+      <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">Use these to verify each change you make</h3>
+      ${links.map(l => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><a href="${escape(l.url)}" style="color:#c2410c;text-decoration:none;font-weight:600;font-size:14px;">→ ${escape(l.label)}</a><div style="color:#64748b;font-size:12px;margin-top:2px;">${escape(l.tool)}</div></div>`).join('')}
     </div>`;
     })();
 
     const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Your AI Visibility Report</title></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0a0f1a;line-height:1.55;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>Your AI Visibility Report</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;line-height:1.55;">
   <div style="max-width:640px;margin:0 auto;padding:32px 16px;">
 
     <div style="text-align:center;margin-bottom:28px;">
-      <h1 style="color:#fff;font-size:24px;margin:0;font-weight:800;">REMODELY<span style="color:#3b82f6;">.AI</span></h1>
-      <p style="color:#6b7280;font-size:13px;margin:6px 0 0 0;">AI Visibility &amp; SEO Report</p>
+      <h1 style="color:#0f172a;font-size:24px;margin:0;font-weight:800;">REMODELY<span style="color:#c2410c;">.AI</span></h1>
+      <p style="color:#64748b;font-size:13px;margin:6px 0 0 0;">AI Visibility &amp; SEO Report</p>
     </div>
 
-    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:32px;margin-bottom:24px;">
-      <h2 style="color:#fff;font-size:20px;margin:0 0 8px 0;">${greeting}</h2>
-      <p style="color:#9ca3af;margin:0 0 24px 0;font-size:14px;">Your report for <strong style="color:#fff;">${escape(url)}</strong></p>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;margin-bottom:24px;">
+      <h2 style="color:#0f172a;font-size:20px;margin:0 0 8px 0;">${greeting}</h2>
+      <p style="color:#64748b;margin:0 0 24px 0;font-size:14px;">Your report for <strong style="color:#0f172a;">${escape(url)}</strong></p>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
-        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:10px;padding:18px;text-align:center;">
-          <div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Overall</div>
+      <div style="display:table;width:100%;border-spacing:6px;margin-bottom:20px;">
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:18px;text-align:center;">
+          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Overall</div>
           <div style="font-size:38px;font-weight:800;color:${overallColor};line-height:1;">${overallScore}</div>
-          <div style="display:inline-block;background:${overallColor}20;color:${overallColor};padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;margin-top:8px;">Grade: ${escape(overallGrade)}</div>
+          <div style="display:inline-block;background:#f1f5f9;color:${overallColor};padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;margin-top:8px;">Grade: ${escape(overallGrade)}</div>
         </div>
-        <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.18);border-radius:10px;padding:18px;text-align:center;">
-          <div style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">AI Visibility</div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:18px;text-align:center;">
+          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">AI Visibility</div>
           <div style="font-size:38px;font-weight:800;color:${buildScoreColor(aiScore)};line-height:1;">${aiScore}</div>
-          <div style="color:#9ca3af;font-size:12px;margin-top:8px;">Out of 100</div>
+          <div style="color:#64748b;font-size:12px;margin-top:8px;">Out of 100</div>
         </div>
       </div>
 
-      <p style="color:#cbd5e1;font-size:15px;margin:0;">${scoreMessage}</p>
+      <p style="color:#475569;font-size:15px;margin:0;">${scoreMessage}</p>
     </div>
 
     ${quickWinsHtml}
@@ -2651,20 +2651,20 @@ router.post('/send-report', async (req, res) => {
     ${toolsHtml}
 
     ${callMeLink ? `
-    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;">
-      <h3 style="color:#fff;font-size:16px;margin:0 0 8px 0;">Want a 2-minute walkthrough?</h3>
-      <p style="color:#9ca3af;margin:0 0 16px 0;font-size:13px;">Aria (our AI) will call and explain exactly what to fix and in what order — no sales pitch.</p>
-      <a href="${callMeLink}" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Call Me Now</a>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;">
+      <h3 style="color:#0f172a;font-size:16px;margin:0 0 8px 0;">Want a 2-minute walkthrough?</h3>
+      <p style="color:#64748b;margin:0 0 16px 0;font-size:13px;">Aria (our AI) will call and explain exactly what to fix and in what order — no sales pitch.</p>
+      <a href="${callMeLink}" style="display:inline-block;background:#ea580c;color:#ffffff;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Call Me Now</a>
     </div>
     ` : ''}
 
-    <div style="background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:18px;text-align:center;margin-bottom:16px;">
-      <p style="color:#9ca3af;font-size:13px;margin:0 0 10px 0;">Stuck on any of these? Free 15-minute help, no upsell.</p>
-      <a href="https://remodely.ai/#contact" style="display:inline-block;background:transparent;color:#22c55e;border:1px solid #22c55e;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px;">Book Free Help Call</a>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px;text-align:center;margin-bottom:16px;">
+      <p style="color:#64748b;font-size:13px;margin:0 0 10px 0;">Stuck on any of these? Free 15-minute help, no upsell.</p>
+      <a href="https://remodely.ai/#contact" style="display:inline-block;background:#15803d;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Book Free Help Call</a>
     </div>
 
-    <div style="text-align:center;color:#6b7280;font-size:11px;margin-top:20px;line-height:1.7;">
-      <p style="margin:0;">Remodely AI · <a href="https://remodely.ai" style="color:#3b82f6;text-decoration:none;">remodely.ai</a></p>
+    <div style="text-align:center;color:#64748b;font-size:11px;margin-top:20px;line-height:1.7;">
+      <p style="margin:0;">Remodely AI · <a href="https://remodely.ai" style="color:#c2410c;text-decoration:none;">remodely.ai</a></p>
       <p style="margin:4px 0 0 0;">Every fix in this report is something you can do yourself with the linked free tools. We get paid only if you ask us to do it for you.</p>
     </div>
 
