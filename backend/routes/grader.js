@@ -2428,7 +2428,7 @@ router.post('/analyze', graderLimiter, async (req, res) => {
 // own site without paying anyone. Match is case-insensitive starts-with.
 const QUICK_WIN_PLAYBOOK = [
   { match: /meta description/i,
-    how: 'In your page <head>, add: <code style="background:#0a0f1a;padding:2px 6px;border-radius:3px;color:#93c5fd;font-family:monospace">&lt;meta name="description" content="..."&gt;</code> with 150–160 characters describing the page.',
+    how: 'In your page <head>, add: <code style="background:#f1f5f9;border:1px solid #e2e8f0;padding:2px 6px;border-radius:3px;color:#9a3412;font-family:monospace">&lt;meta name="description" content="..."&gt;</code> with 150–160 characters describing the page.',
     link: 'https://moz.com/learn/seo/meta-description', linkText: 'Meta description guide (Moz)' },
   { match: /schema|structured data|localbusiness/i,
     how: 'Generate a free LocalBusiness JSON-LD block, then paste it inside the &lt;head&gt; of your homepage. Test with Google Rich Results Test.',
@@ -2474,9 +2474,11 @@ function findPlaybookEntry(title) {
 }
 
 function buildScoreColor(score) {
-  if (score >= 80) return '#22c55e';
-  if (score >= 60) return '#eab308';
-  return '#ef4444';
+  // Chosen for a white card. The previous values were picked for a dark ground
+  // and #eab308 on white is barely legible.
+  if (score >= 80) return '#15803d';
+  if (score >= 60) return '#a16207';
+  return '#b91c1c';
 }
 
 router.post('/send-report', async (req, res) => {
@@ -2583,7 +2585,7 @@ router.post('/send-report', async (req, res) => {
       <div style="color:#b91c1c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Issues Detected</div>
       <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">What's hurting your score</h3>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${issues.map(i => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#b91c1c;">!</span>${escape(i)}</li>`).join('')}
+        ${issues.map(i0 => { const i = (i0 && typeof i0 === "object") ? (i0.title || i0.description || "") : i0; return `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#b91c1c;">!</span>${escape(i)}</li>`; }).join('')}
       </ul>
     </div>` : '';
 
@@ -2592,7 +2594,7 @@ router.post('/send-report', async (req, res) => {
       <div style="color:#15803d;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
       <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">Bigger improvements once Quick Wins are done</h3>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${recommendations.map(r => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#15803d;">+</span>${escape(r)}</li>`).join('')}
+        ${recommendations.map(r0 => { const r = (r0 && typeof r0 === "object") ? (r0.title || r0.description || "") : r0; return `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#15803d;">+</span>${escape(r)}</li>`; }).join('')}
       </ul>
     </div>` : '';
 
@@ -2838,21 +2840,21 @@ router.post('/tool-lead', async (req, res) => {
 
       const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0a0f1a;line-height:1.55;color:#fff;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;line-height:1.55;color:#0f172a;">
   <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
     <div style="text-align:center;margin-bottom:24px;">
-      <h1 style="color:#fff;font-size:22px;margin:0;font-weight:800;">REMODELY<span style="color:#fb923c;">.AI</span></h1>
+      <h1 style="color:#0f172a;font-size:22px;margin:0;font-weight:800;">REMODELY<span style="color:#c2410c;">.AI</span></h1>
     </div>
-    <div style="background:#131c2e;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:28px;">
-      <h2 style="color:#fff;font-size:18px;margin:0 0 8px 0;">${greeting}</h2>
-      <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0 0 16px 0;">Thanks for running the <strong style="color:#fb923c;">${toolLabel}</strong> on <strong style="color:#fff;">${url}</strong>.</p>
-      ${score != null ? `<div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:10px;padding:18px;text-align:center;margin:16px 0;"><div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">YOUR SCORE</div><div style="font-size:36px;font-weight:800;color:#fb923c;line-height:1;">${score}<span style="font-size:14px;color:rgba(255,255,255,0.5);">/100</span></div></div>` : ''}
-      ${summary ? `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;margin:0 0 16px 0;">${summary}</p>` : ''}
-      <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin:0 0 12px 0;">Want a deeper analysis? Run the full grader for the unified report covering every check at once.</p>
-      <a href="https://www.remodely.ai/grader.html?url=${encodeURIComponent(url)}" style="display:inline-block;background:#f97316;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:8px;">Run the full grader →</a>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;">
+      <h2 style="color:#0f172a;font-size:18px;margin:0 0 8px 0;">${greeting}</h2>
+      <p style="color:#475569;font-size:14px;margin:0 0 16px 0;">Thanks for running the <strong style="color:#c2410c;">${toolLabel}</strong> on <strong style="color:#0f172a;">${url}</strong>.</p>
+      ${score != null ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:18px;text-align:center;margin:16px 0;"><div style="font-size:11px;color:#64748b);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">YOUR SCORE</div><div style="font-size:36px;font-weight:800;color:#c2410c;line-height:1;">${score}<span style="font-size:14px;color:rgba(255,255,255,0.5);">/100</span></div></div>` : ''}
+      ${summary ? `<p style="color:#334155;font-size:14px;line-height:1.6;margin:0 0 16px 0;">${summary}</p>` : ''}
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 12px 0;">Want a deeper analysis? Run the full grader for the unified report covering every check at once.</p>
+      <a href="https://www.remodely.ai/grader.html?url=${encodeURIComponent(url)}" style="display:inline-block;background:#ea580c;color:#ffffff;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:8px;">Run the full grader →</a>
     </div>
-    <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:11px;margin-top:20px;">
-      <p style="margin:0;">Remodely AI · <a href="https://www.remodely.ai" style="color:#fb923c;">remodely.ai</a></p>
+    <div style="text-align:center;color:#64748b;font-size:11px;margin-top:20px;">
+      <p style="margin:0;">Remodely AI · <a href="https://www.remodely.ai" style="color:#c2410c;">remodely.ai</a></p>
     </div>
   </div>
 </body></html>`;
