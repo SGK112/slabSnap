@@ -2533,11 +2533,11 @@ router.post('/send-report', async (req, res) => {
         return `
         <div style="border-top:1px solid #e2e8f0;padding:18px 0;">
           <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="flex-shrink:0;width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,0.15);color:#c2410c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${i + 1}</div>
+            <div style="flex-shrink:0;width:28px;height:28px;border-radius:8px;background:#ffedd5;color:#c2410c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${i + 1}</div>
             <div style="flex:1;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;">
                 <strong style="color:#0f172a;font-size:16px;">${escape(qw.title)}</strong>
-                ${qw.time ? `<span style="background:#bbf7d0;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${escape(qw.time)}</span>` : ''}
+                ${qw.time ? `<span style="background:#bbf7d0;color:#15803d;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${escape(qw.time)}</span>` : ''}
               </div>
               ${qw.desc ? `<p style="color:#64748b;margin:0 0 8px 0;font-size:14px;">${escape(qw.desc)}</p>` : ''}
               ${pb ? `
@@ -2574,25 +2574,25 @@ router.post('/send-report', async (req, res) => {
     <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px;">
       <div style="color:#c2410c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Google Signals</div>
       <h3 style="color:#0f172a;font-size:18px;margin:0 0 16px 0;">PageSpeed mobile field data</h3>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${items}</div>
+      <div style="display:table;width:100%;border-spacing:4px;">${items}</div>
     </div>`;
     })();
 
     const issuesHtml = issues.length ? `
-    <div style="background:#ffffff;border:1px solid rgba(239,68,68,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="color:#ef4444;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Issues Detected</div>
+    <div style="background:#ffffff;border:1px solid #fecaca;border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#b91c1c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Issues Detected</div>
       <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">What's hurting your score</h3>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${issues.map(i => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#ef4444;">!</span>${escape(i)}</li>`).join('')}
+        ${issues.map(i => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#b91c1c;">!</span>${escape(i)}</li>`).join('')}
       </ul>
     </div>` : '';
 
     const recsHtml = recommendations.length ? `
-    <div style="background:#ffffff;border:1px solid rgba(34,197,94,0.25);border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="color:#22c55e;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
+    <div style="background:#ffffff;border:1px solid #bbf7d0;border-radius:16px;padding:24px;margin-bottom:24px;">
+      <div style="color:#15803d;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
       <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">Bigger improvements once Quick Wins are done</h3>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${recommendations.map(r => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#22c55e;">+</span>${escape(r)}</li>`).join('')}
+        ${recommendations.map(r => `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#15803d;">+</span>${escape(r)}</li>`).join('')}
       </ul>
     </div>` : '';
 
@@ -2609,7 +2609,7 @@ router.post('/send-report', async (req, res) => {
     <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px;">
       <div style="color:#c2410c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Free Tools — Test Your Fixes</div>
       <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">Use these to verify each change you make</h3>
-      ${links.map(l => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><a href="${escape(l.url)}" style="color:#c2410c;text-decoration:none;font-weight:600;font-size:14px;">→ ${escape(l.label)}</a><div style="color:#64748b;font-size:12px;margin-top:2px;">${escape(l.tool)}</div></div>`).join('')}
+      ${links.map(l => `<div style="padding:10px 0;border-bottom:1px solid #e2e8f0;"><a href="${escape(l.url)}" style="color:#c2410c;text-decoration:none;font-weight:600;font-size:14px;">→ ${escape(l.label)}</a><div style="color:#64748b;font-size:12px;margin-top:2px;">${escape(l.tool)}</div></div>`).join('')}
     </div>`;
     })();
 
