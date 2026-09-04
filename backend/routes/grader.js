@@ -2526,31 +2526,41 @@ router.post('/send-report', async (req, res) => {
     // ── Build HTML sections ─────────────────────────────────────────────
     const escape = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+    // Numbered rows are a two-cell table, not flex: Outlook ignores flex and
+    // collapsed the number onto the text with no gap at all. The number column
+    // is a fixed 56px so every row's text starts on the same line.
     const quickWinsHtml = quickWins.length ? `
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:24px;">
-      <div style="color:#c2410c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Quick Wins — DIY Fixes</div>
-      <h3 style="color:#0f172a;font-size:20px;margin:0 0 16px 0;">Fix these first. No developer needed.</h3>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;margin:0 0 20px 0;">
+      <tr><td style="padding:28px 28px 8px 28px;">
+        <div style="color:#c2410c;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px 0;">Quick wins — do these yourself</div>
+        <h3 style="color:#0f172a;font-size:20px;line-height:1.25;margin:0 0 4px 0;font-weight:700;">Fix these first. No developer needed.</h3>
+      </td></tr>
       ${quickWins.map((qw, i) => {
         const pb = findPlaybookEntry(qw.title);
         return `
-        <div style="border-top:1px solid #e2e8f0;padding:18px 0;">
-          <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="flex-shrink:0;width:28px;height:28px;border-radius:8px;background:#ffedd5;color:#c2410c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${i + 1}</div>
-            <div style="flex:1;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;">
-                <strong style="color:#0f172a;font-size:16px;">${escape(qw.title)}</strong>
-                ${qw.time ? `<span style="background:#bbf7d0;color:#15803d;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${escape(qw.time)}</span>` : ''}
-              </div>
-              ${qw.desc ? `<p style="color:#64748b;margin:0 0 8px 0;font-size:14px;">${escape(qw.desc)}</p>` : ''}
+      <tr><td style="padding:0 28px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;">
+          <tr>
+            <td width="56" valign="top" style="width:56px;padding:24px 16px 24px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+                <td align="center" style="width:34px;height:34px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#c2410c;font-size:15px;font-weight:700;line-height:34px;">${i + 1}</td>
+              </tr></table>
+            </td>
+            <td valign="top" style="padding:24px 0;">
+              <div style="color:#0f172a;font-size:16px;font-weight:700;line-height:1.35;margin:0 0 6px 0;">${escape(qw.title)}</div>
+              ${qw.time ? `<div style="margin:0 0 10px 0;"><span style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;">${escape(qw.time)}</span></div>` : ''}
+              ${qw.desc ? `<p style="color:#64748b;margin:0 0 12px 0;font-size:14.5px;line-height:1.6;">${escape(qw.desc)}</p>` : ''}
               ${pb ? `
-                <p style="color:#475569;margin:0 0 8px 0;font-size:14px;line-height:1.55;"><strong style="color:#0f172a;">How to fix:</strong> ${pb.how}</p>
-                <a href="${escape(pb.link)}" style="color:#c2410c;text-decoration:none;font-size:13px;font-weight:600;">→ ${escape(pb.linkText)}</a>
+              <p style="color:#475569;margin:0 0 12px 0;font-size:14.5px;line-height:1.65;"><strong style="color:#0f172a;">How to fix:</strong> ${pb.how}</p>
+              <a href="${escape(pb.link)}" style="color:#c2410c;text-decoration:none;font-size:13.5px;font-weight:700;">${escape(pb.linkText)} &rarr;</a>
               ` : ''}
-            </div>
-          </div>
-        </div>`;
+            </td>
+          </tr>
+        </table>
+      </td></tr>`;
       }).join('')}
-    </div>` : '';
+      <tr><td style="padding:0 28px 20px 28px;"></td></tr>
+    </table>` : '';
 
     const googleSignalsHtml = (() => {
       if (!googleSignals) return '';
@@ -2580,23 +2590,26 @@ router.post('/send-report', async (req, res) => {
     </div>`;
     })();
 
-    const issuesHtml = issues.length ? `
-    <div style="background:#ffffff;border:1px solid #fecaca;border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="color:#b91c1c;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Issues Detected</div>
-      <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">What's hurting your score</h3>
-      <ul style="margin:0;padding:0;list-style:none;">
-        ${issues.map(i0 => { const i = (i0 && typeof i0 === "object") ? (i0.title || i0.description || "") : i0; return `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#b91c1c;">!</span>${escape(i)}</li>`; }).join('')}
-      </ul>
-    </div>` : '';
+    // One card system for every block: white, same border, same 28px padding.
+    const listCard = (label, labelColor, heading, items, bullet, bulletColor) => items.length ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;margin:0 0 20px 0;">
+      <tr><td style="padding:28px;">
+        <div style="color:${labelColor};font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px 0;">${label}</div>
+        <h3 style="color:#0f172a;font-size:19px;line-height:1.28;margin:0 0 16px 0;font-weight:700;">${heading}</h3>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${items.map((raw, n) => {
+            const text = (raw && typeof raw === 'object') ? (raw.title || raw.description || '') : raw;
+            return `<tr>
+            <td width="26" valign="top" style="width:26px;padding:${n ? '14px' : '0'} 10px 0 0;color:${bulletColor};font-size:15px;font-weight:700;line-height:1.6;">${bullet}</td>
+            <td valign="top" style="padding:${n ? '14px' : '0'} 0 0 0;color:#475569;font-size:14.5px;line-height:1.6;">${escape(text)}</td>
+          </tr>`;
+          }).join('')}
+        </table>
+      </td></tr>
+    </table>` : '';
 
-    const recsHtml = recommendations.length ? `
-    <div style="background:#ffffff;border:1px solid #bbf7d0;border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="color:#15803d;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Recommendations</div>
-      <h3 style="color:#0f172a;font-size:18px;margin:0 0 12px 0;">Bigger improvements once Quick Wins are done</h3>
-      <ul style="margin:0;padding:0;list-style:none;">
-        ${recommendations.map(r0 => { const r = (r0 && typeof r0 === "object") ? (r0.title || r0.description || "") : r0; return `<li style="color:#475569;padding:8px 0 8px 24px;border-bottom:1px solid #e2e8f0;font-size:14px;line-height:1.55;position:relative;"><span style="position:absolute;left:0;color:#15803d;">+</span>${escape(r)}</li>`; }).join('')}
-      </ul>
-    </div>` : '';
+    const issuesHtml = listCard('Issues detected', '#b91c1c', "What's hurting your score", issues, '!', '#b91c1c');
+    const recsHtml = listCard('Recommendations', '#15803d', 'Bigger improvements once the quick wins are done', recommendations, '+', '#15803d');
 
     const toolsHtml = (() => {
       const t = tools || {};
@@ -2617,60 +2630,95 @@ router.post('/send-report', async (req, res) => {
 
     const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>Your AI Visibility Report</title></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;line-height:1.55;">
-  <div style="max-width:640px;margin:0 auto;padding:32px 16px;">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Your AI Visibility Report</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
-    <div style="text-align:center;margin-bottom:28px;">
-      <h1 style="color:#0f172a;font-size:24px;margin:0;font-weight:800;">REMODELY<span style="color:#c2410c;">.AI</span></h1>
-      <p style="color:#64748b;font-size:13px;margin:6px 0 0 0;">AI Visibility &amp; SEO Report</p>
-    </div>
+      <tr><td align="center" style="padding:0 0 28px 0;">
+        <div style="color:#0f172a;font-size:22px;font-weight:800;letter-spacing:-.01em;">REMODELY<span style="color:#c2410c;">.AI</span></div>
+        <div style="color:#64748b;font-size:13px;padding-top:6px;">AI Visibility &amp; SEO Report</div>
+      </td></tr>
 
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;margin-bottom:24px;">
-      <h2 style="color:#0f172a;font-size:20px;margin:0 0 8px 0;">${greeting}</h2>
-      <p style="color:#64748b;margin:0 0 24px 0;font-size:14px;">Your report for <strong style="color:#0f172a;">${escape(url)}</strong></p>
+      <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:28px;">
+        <div style="color:#0f172a;font-size:20px;font-weight:700;margin:0 0 6px 0;">${greeting}</div>
+        <div style="color:#64748b;font-size:14px;padding-bottom:22px;">Your report for <strong style="color:#0f172a;">${escape(url)}</strong></div>
 
-      <div style="display:table;width:100%;border-spacing:6px;margin-bottom:20px;">
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:18px;text-align:center;">
-          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Overall</div>
-          <div style="font-size:38px;font-weight:800;color:${overallColor};line-height:1;">${overallScore}</div>
-          <div style="display:inline-block;background:#f1f5f9;color:${overallColor};padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;margin-top:8px;">Grade: ${escape(overallGrade)}</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="50%" valign="top" style="padding:0 8px 0 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+                <tr><td align="center" style="padding:20px 12px;">
+                  <div style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Overall</div>
+                  <div style="color:${overallColor};font-size:40px;font-weight:800;line-height:1.1;padding:6px 0 0 0;">${overallScore}</div>
+                  <div style="color:#475569;font-size:12.5px;font-weight:600;padding-top:6px;">Grade ${escape(overallGrade)}</div>
+                </td></tr>
+              </table>
+            </td>
+            <td width="50%" valign="top" style="padding:0 0 0 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+                <tr><td align="center" style="padding:20px 12px;">
+                  <div style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">AI visibility</div>
+                  <div style="color:${buildScoreColor(aiScore)};font-size:40px;font-weight:800;line-height:1.1;padding:6px 0 0 0;">${aiScore}</div>
+                  <div style="color:#475569;font-size:12.5px;font-weight:600;padding-top:6px;">out of 100</div>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <div style="color:#475569;font-size:15px;line-height:1.6;padding:22px 0 0 0;">${scoreMessage}</div>
+      </td></tr>
+
+      <tr><td style="height:20px;line-height:20px;font-size:0;">&nbsp;</td></tr>
+
+      <tr><td>
+        ${quickWinsHtml}
+        ${issuesHtml}
+        ${recsHtml}
+        ${googleSignalsHtml}
+        ${toolsHtml}
+      </td></tr>
+
+      ${callMeLink ? `
+      <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-top:3px solid #ea580c;border-radius:12px;padding:28px;" align="center">
+        <div style="color:#0f172a;font-size:18px;font-weight:700;margin:0 0 8px 0;">Want a 2-minute walkthrough?</div>
+        <div style="color:#64748b;font-size:14.5px;line-height:1.6;padding:0 0 20px 0;">Aria will call and explain exactly what to fix and in what order — no sales pitch.</div>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td align="center" style="background:#ea580c;border-radius:8px;">
+            <a href="${callMeLink}" style="display:inline-block;padding:14px 30px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">Call me now</a>
+          </td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="height:20px;line-height:20px;font-size:0;">&nbsp;</td></tr>
+      ` : ''}
+
+      <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:28px;" align="center">
+        <div style="color:#475569;font-size:14.5px;line-height:1.6;padding:0 0 18px 0;">Stuck on any of these? Free 15 minutes, no upsell.</div>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td align="center" style="background:#0f172a;border-radius:8px;">
+            <a href="https://www.remodely.ai/#contact" style="display:inline-block;padding:13px 28px;color:#ffffff;font-size:14.5px;font-weight:700;text-decoration:none;">Book a help call</a>
+          </td>
+        </tr></table>
+      </td></tr>
+
+      <tr><td align="center" style="padding:26px 12px 0 12px;">
+        <div style="color:#64748b;font-size:12px;line-height:1.7;">
+          Remodely AI · <a href="https://www.remodely.ai" style="color:#c2410c;text-decoration:none;font-weight:600;">remodely.ai</a><br>
+          Every fix in this report is something you can do yourself with the linked free tools.
+          We get paid only if you ask us to do it for you.
         </div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:18px;text-align:center;">
-          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">AI Visibility</div>
-          <div style="font-size:38px;font-weight:800;color:${buildScoreColor(aiScore)};line-height:1;">${aiScore}</div>
-          <div style="color:#64748b;font-size:12px;margin-top:8px;">Out of 100</div>
-        </div>
-      </div>
+      </td></tr>
 
-      <p style="color:#475569;font-size:15px;margin:0;">${scoreMessage}</p>
-    </div>
-
-    ${quickWinsHtml}
-    ${issuesHtml}
-    ${recsHtml}
-    ${googleSignalsHtml}
-    ${toolsHtml}
-
-    ${callMeLink ? `
-    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;">
-      <h3 style="color:#0f172a;font-size:16px;margin:0 0 8px 0;">Want a 2-minute walkthrough?</h3>
-      <p style="color:#64748b;margin:0 0 16px 0;font-size:13px;">Aria (our AI) will call and explain exactly what to fix and in what order — no sales pitch.</p>
-      <a href="${callMeLink}" style="display:inline-block;background:#ea580c;color:#ffffff;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Call Me Now</a>
-    </div>
-    ` : ''}
-
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px;text-align:center;margin-bottom:16px;">
-      <p style="color:#64748b;font-size:13px;margin:0 0 10px 0;">Stuck on any of these? Free 15-minute help, no upsell.</p>
-      <a href="https://remodely.ai/#contact" style="display:inline-block;background:#15803d;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Book Free Help Call</a>
-    </div>
-
-    <div style="text-align:center;color:#64748b;font-size:11px;margin-top:20px;line-height:1.7;">
-      <p style="margin:0;">Remodely AI · <a href="https://remodely.ai" style="color:#c2410c;text-decoration:none;">remodely.ai</a></p>
-      <p style="margin:4px 0 0 0;">Every fix in this report is something you can do yourself with the linked free tools. We get paid only if you ask us to do it for you.</p>
-    </div>
-
-  </div>
+    </table>
+  </td></tr>
+</table>
 </body>
 </html>`;
 
